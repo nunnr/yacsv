@@ -158,13 +158,13 @@ public class AllTests {
 	@Test
 	public void test1() throws Exception {
 		CsvReader reader = CsvReader.parse("1,2");
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertEquals("", reader.getRawRecord());
 		Assert.assertEquals("", reader.get(0));
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("1", reader.get(0));
 		Assert.assertEquals("2", reader.get(1));
-		Assert.assertEquals(',', reader.getDelimiter());
+		Assert.assertEquals(',', reader.config.getDelimiter());
 		Assert.assertEquals(0L, reader.getCurrentRecord());
 		Assert.assertEquals(2, reader.getColumnCount());
 		Assert.assertEquals("1,2", reader.getRawRecord());
@@ -178,12 +178,12 @@ public class AllTests {
 		String data = "\"bob said, \"\"Hey!\"\"\",2, 3 ";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("bob said, \"Hey!\"", reader.get(0));
 		Assert.assertEquals("2", reader.get(1));
 		Assert.assertEquals("3", reader.get(2));
-		Assert.assertEquals(',', reader.getDelimiter());
+		Assert.assertEquals(',', reader.config.getDelimiter());
 		Assert.assertEquals(0L, reader.getCurrentRecord());
 		Assert.assertEquals(3, reader.getColumnCount());
 		Assert.assertEquals("\"bob said, \"\"Hey!\"\"\",2, 3 ", reader
@@ -198,11 +198,11 @@ public class AllTests {
 		String data = ",";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("", reader.get(0));
 		Assert.assertEquals("", reader.get(1));
-		Assert.assertEquals(',', reader.getDelimiter());
+		Assert.assertEquals(',', reader.config.getDelimiter());
 		Assert.assertEquals(0L, reader.getCurrentRecord());
 		Assert.assertEquals(2, reader.getColumnCount());
 		Assert.assertEquals(",", reader.getRawRecord());
@@ -216,7 +216,7 @@ public class AllTests {
 		String data = "1\r2";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("1", reader.get(0));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
@@ -237,7 +237,7 @@ public class AllTests {
 		String data = "1\n2";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("1", reader.get(0));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
@@ -258,7 +258,7 @@ public class AllTests {
 		String data = "1\r\n2";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("1", reader.get(0));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
@@ -279,7 +279,7 @@ public class AllTests {
 		String data = "1\r";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("1", reader.get(0));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
@@ -295,7 +295,7 @@ public class AllTests {
 		String data = "1\n";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("1", reader.get(0));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
@@ -311,7 +311,7 @@ public class AllTests {
 		String data = "1\r\n";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("1", reader.get(0));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
@@ -327,8 +327,8 @@ public class AllTests {
 		String data = "1\r2\n";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
-		reader.setDelimiter('\r');
+		reader.config.setCaptureRawRecord(true);
+		reader.config.setDelimiter('\r');
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("1", reader.get(0));
 		Assert.assertEquals("2", reader.get(1));
@@ -345,7 +345,7 @@ public class AllTests {
 		String data = "\"July 4th, 2005\"";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("July 4th, 2005", reader.get(0));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
@@ -360,8 +360,8 @@ public class AllTests {
 		String data = " 1";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
-		reader.setTrimWhitespace(false);
+		reader.config.setCaptureRawRecord(true);
+		reader.config.setTrimWhitespace(false);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals(" 1", reader.get(0));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
@@ -385,7 +385,7 @@ public class AllTests {
 		String data = "user_id,name\r\n1,Bruce";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readHeaders());
 		Assert.assertEquals("user_id,name", reader.getRawRecord());
 		Assert.assertTrue(reader.readRecord());
@@ -409,7 +409,7 @@ public class AllTests {
 		String data = "\"data \r\n here\"";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("data \r\n here", reader.get(0));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
@@ -424,8 +424,8 @@ public class AllTests {
 		String data = "\r\r\n1\r";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
-		reader.setDelimiter('\r');
+		reader.config.setCaptureRawRecord(true);
+		reader.config.setDelimiter('\r');
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("", reader.get(0));
 		Assert.assertEquals("", reader.get(1));
@@ -448,7 +448,7 @@ public class AllTests {
 		String data = "\"double\"\"\"\"double quotes\"";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("double\"\"double quotes", reader.get(0));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
@@ -464,7 +464,7 @@ public class AllTests {
 		String data = "1\r";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("1", reader.get(0));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
@@ -479,7 +479,7 @@ public class AllTests {
 		String data = "1\r\n";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("1", reader.get(0));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
@@ -494,7 +494,7 @@ public class AllTests {
 		String data = "1\n";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("1", reader.get(0));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
@@ -509,13 +509,13 @@ public class AllTests {
 		String data = "'bob said, ''Hey!''',2, 3 ";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
-		reader.setTextQualifier('\'');
+		reader.config.setCaptureRawRecord(true);
+		reader.config.setTextQualifier('\'');
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("bob said, 'Hey!'", reader.get(0));
 		Assert.assertEquals("2", reader.get(1));
 		Assert.assertEquals("3", reader.get(2));
-		Assert.assertEquals(',', reader.getDelimiter());
+		Assert.assertEquals(',', reader.config.getDelimiter());
 		Assert.assertEquals(0L, reader.getCurrentRecord());
 		Assert.assertEquals(3, reader.getColumnCount());
 		Assert
@@ -530,8 +530,8 @@ public class AllTests {
 		String data = "\"data \"\" here\"";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
-		reader.setUseTextQualifier(false);
+		reader.config.setCaptureRawRecord(true);
+		reader.config.setUseTextQualifier(false);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("\"data \"\" here\"", reader.get(0));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
@@ -546,8 +546,8 @@ public class AllTests {
 		String data = generateString('a', 75) + "," + generateString('b', 75);
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
-		reader.setUseTextQualifier(false);
+		reader.config.setCaptureRawRecord(true);
+		reader.config.setUseTextQualifier(false);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals(reader.get(0), generateString('a', 75));
 		Assert.assertEquals(reader.get(1), generateString('b', 75));
@@ -564,8 +564,8 @@ public class AllTests {
 		String data = "1\r\n\r\n1";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
-		reader.setUseTextQualifier(false);
+		reader.config.setCaptureRawRecord(true);
+		reader.config.setUseTextQualifier(false);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("1", reader.get(0));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
@@ -585,9 +585,9 @@ public class AllTests {
 		String data = "1\r\n# bunch of crazy stuff here\r\n1";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
-		reader.setUseTextQualifier(false);
-		reader.setUseComments(true);
+		reader.config.setCaptureRawRecord(true);
+		reader.config.setUseTextQualifier(false);
+		reader.config.setUseComments(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("1", reader.get(0));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
@@ -607,7 +607,7 @@ public class AllTests {
 		String data = "\"Mac \"The Knife\" Peter\",\"Boswell, Jr.\"";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("Mac ", reader.get(0));
 		Assert.assertEquals("Boswell, Jr.", reader.get(1));
@@ -624,7 +624,7 @@ public class AllTests {
 		String data = "\"1\",Bruce\r\n\"2\n\",Toni\r\n\"3\",Brian\r\n";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("1", reader.get(0));
 		Assert.assertEquals("Bruce", reader.get(1));
@@ -648,13 +648,13 @@ public class AllTests {
 		String data = "\"bob said, \\\"Hey!\\\"\",2, 3 ";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
-		reader.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
+		reader.config.setCaptureRawRecord(true);
+		reader.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("bob said, \"Hey!\"", reader.get(0));
 		Assert.assertEquals("2", reader.get(1));
 		Assert.assertEquals("3", reader.get(2));
-		Assert.assertEquals(',', reader.getDelimiter());
+		Assert.assertEquals(',', reader.config.getDelimiter());
 		Assert.assertEquals(0L, reader.getCurrentRecord());
 		Assert.assertEquals(3, reader.getColumnCount());
 		Assert.assertEquals("\"bob said, \\\"Hey!\\\"\",2, 3 ", reader
@@ -668,8 +668,8 @@ public class AllTests {
 		String data = "\"double\\\"\\\"double quotes\"";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
-		reader.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
+		reader.config.setCaptureRawRecord(true);
+		reader.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("double\"\"double quotes", reader.get(0));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
@@ -685,8 +685,8 @@ public class AllTests {
 		String data = "\"double\\\\\\\\double backslash\"";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
-		reader.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
+		reader.config.setCaptureRawRecord(true);
+		reader.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("double\\\\double backslash", reader.get(0));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
@@ -709,7 +709,7 @@ public class AllTests {
 
 		CsvReader reader = new CsvReader(new InputStreamReader(
 				new FileInputStream("temp.csv"), Charset.forName("UTF-8")));
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("", reader.get(0));
 		Assert.assertEquals(1, reader.getColumnCount());
@@ -726,7 +726,7 @@ public class AllTests {
 		String data = "\"Mac \"The Knife\" Peter\",\"Boswell, Jr.\"";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("Mac ", reader.get(0));
 		Assert.assertEquals("Boswell, Jr.", reader.get(1));
@@ -762,7 +762,7 @@ public class AllTests {
 				+ "\"Samuel Barber\", \"Adagio for Strings\", \"Classical\", \"This field contains a double quote character, \"\", but it doesn't matter as it is escaped\"";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("Chicane", reader.get(0));
 		Assert.assertEquals("Love on the Run", reader.get(1));
@@ -800,7 +800,7 @@ public class AllTests {
 		String data = "Chicane, Love on the Run, Knight Rider, \"This field contains a comma, but it doesn't matter as the field is quoted\"";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("Chicane", reader.get(0));
 		Assert.assertEquals("Love on the Run", reader.get(1));
@@ -824,8 +824,8 @@ public class AllTests {
 		String data = "\"some \\stuff\"";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
-		reader.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
+		reader.config.setCaptureRawRecord(true);
+		reader.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("some stuff", reader.get(0));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
@@ -840,7 +840,7 @@ public class AllTests {
 		String data = "  \" Chicane\"  junk here  , Love on the Run, Knight Rider, \"This field contains a comma, but it doesn't matter as the field is quoted\"";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals(" Chicane", reader.get(0));
 		Assert.assertEquals("Love on the Run", reader.get(1));
@@ -864,7 +864,7 @@ public class AllTests {
 		String data = "1\r\n\r\n\"\"\r\n \r\n2";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("1", reader.get(0));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
@@ -892,46 +892,46 @@ public class AllTests {
 	@Test
 	public void test39() throws Exception {
 		CsvReader reader = CsvReader.parse("user_id,name\r\n1,Bruce");
-		Assert.assertTrue(reader.getSafetySwitch());
-		reader.setSafetySwitch(false);
-		Assert.assertFalse(reader.getSafetySwitch());
+		Assert.assertTrue(reader.config.getSafetySwitch());
+		reader.config.setSafetySwitch(false);
+		Assert.assertFalse(reader.config.getSafetySwitch());
 
-		Assert.assertEquals('#', reader.getComment());
-		reader.setComment('!');
-		Assert.assertEquals('!', reader.getComment());
+		Assert.assertEquals('#', reader.config.getComment());
+		reader.config.setComment('!');
+		Assert.assertEquals('!', reader.config.getComment());
 
 		Assert.assertEquals(CsvReader.EscapeMode.DOUBLED, reader
-				.getEscapeMode());
-		reader.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
+				.config.getEscapeMode());
+		reader.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 		Assert.assertEquals(CsvReader.EscapeMode.BACKSLASH, reader
-				.getEscapeMode());
+				.config.getEscapeMode());
 
-		Assert.assertEquals(2, reader.getRecordDelimiter().length);
-		Assert.assertEquals('\r', reader.getRecordDelimiter()[0]);
-		Assert.assertEquals('\n', reader.getRecordDelimiter()[1]);
-		reader.setRecordDelimiter(';');
-		Assert.assertEquals(1, reader.getRecordDelimiter().length);
-		Assert.assertEquals(';', reader.getRecordDelimiter()[0]);
-		reader.setRecordDelimiter('\r', '\n');
-		Assert.assertEquals(2, reader.getRecordDelimiter().length);
-		Assert.assertEquals('\r', reader.getRecordDelimiter()[0]);
-		Assert.assertEquals('\n', reader.getRecordDelimiter()[1]);
+		Assert.assertEquals(2, reader.config.getRecordDelimiter().length);
+		Assert.assertEquals('\r', reader.config.getRecordDelimiter()[0]);
+		Assert.assertEquals('\n', reader.config.getRecordDelimiter()[1]);
+		reader.config.setRecordDelimiter(';');
+		Assert.assertEquals(1, reader.config.getRecordDelimiter().length);
+		Assert.assertEquals(';', reader.config.getRecordDelimiter()[0]);
+		reader.config.setRecordDelimiter('\r', '\n');
+		Assert.assertEquals(2, reader.config.getRecordDelimiter().length);
+		Assert.assertEquals('\r', reader.config.getRecordDelimiter()[0]);
+		Assert.assertEquals('\n', reader.config.getRecordDelimiter()[1]);
 
-		Assert.assertEquals('\"', reader.getTextQualifier());
-		reader.setTextQualifier('\'');
-		Assert.assertEquals('\'', reader.getTextQualifier());
+		Assert.assertEquals('\"', reader.config.getTextQualifier());
+		reader.config.setTextQualifier('\'');
+		Assert.assertEquals('\'', reader.config.getTextQualifier());
 
-		Assert.assertTrue(reader.getTrimWhitespace());
-		reader.setTrimWhitespace(false);
-		Assert.assertFalse(reader.getTrimWhitespace());
+		Assert.assertTrue(reader.config.getTrimWhitespace());
+		reader.config.setTrimWhitespace(false);
+		Assert.assertFalse(reader.config.getTrimWhitespace());
 
-		Assert.assertFalse(reader.getUseComments());
-		reader.setUseComments(true);
-		Assert.assertTrue(reader.getUseComments());
+		Assert.assertFalse(reader.config.getUseComments());
+		reader.config.setUseComments(true);
+		Assert.assertTrue(reader.config.getUseComments());
 
-		Assert.assertTrue(reader.getUseTextQualifier());
-		reader.setUseTextQualifier(false);
-		Assert.assertFalse(reader.getUseTextQualifier());
+		Assert.assertTrue(reader.config.getUseTextQualifier());
+		reader.config.setUseTextQualifier(false);
+		Assert.assertFalse(reader.config.getUseTextQualifier());
 		reader.close();
 	}
 
@@ -940,9 +940,9 @@ public class AllTests {
 		String data = "Chicane, Love on the Run, Knight Rider, This field contains a comma\\, but it doesn't matter as the delimiter is escaped";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
-		reader.setUseTextQualifier(false);
-		reader.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
+		reader.config.setCaptureRawRecord(true);
+		reader.config.setUseTextQualifier(false);
+		reader.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("Chicane", reader.get(0));
 		Assert.assertEquals("Love on the Run", reader.get(1));
@@ -966,8 +966,8 @@ public class AllTests {
 		String data = "double\\\\\\\\double backslash";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setUseTextQualifier(false);
-		reader.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
+		reader.config.setUseTextQualifier(false);
+		reader.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("double\\\\double backslash", reader.get(0));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
@@ -981,8 +981,8 @@ public class AllTests {
 		String data = "some \\stuff";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setUseTextQualifier(false);
-		reader.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
+		reader.config.setUseTextQualifier(false);
+		reader.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("some stuff", reader.get(0));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
@@ -996,7 +996,7 @@ public class AllTests {
 		String data = "\"line 1\\nline 2\",\"line 1\\\nline 2\"";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
+		reader.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("line 1\nline 2", reader.get(0));
 		Assert.assertEquals("line 1\nline 2", reader.get(1));
@@ -1011,8 +1011,8 @@ public class AllTests {
 		String data = "line 1\\nline 2,line 1\\\nline 2";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setUseTextQualifier(false);
-		reader.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
+		reader.config.setUseTextQualifier(false);
+		reader.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("line 1\nline 2", reader.get(0));
 		Assert.assertEquals("line 1\nline 2", reader.get(1));
@@ -1028,12 +1028,12 @@ public class AllTests {
 				+ "\"Samuel Barber\", \"Adagio for Strings\", \"Classical\", \"This field contains a double quote character, \"\", but it doesn't matter as it is escaped\"";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
-		Assert.assertTrue(reader.getCaptureRawRecord());
-		reader.setCaptureRawRecord(false);
-		Assert.assertFalse(reader.getCaptureRawRecord());
+		reader.config.setCaptureRawRecord(true);
+		Assert.assertTrue(reader.config.getCaptureRawRecord());
+		reader.config.setCaptureRawRecord(false);
+		Assert.assertFalse(reader.config.getCaptureRawRecord());
 		Assert.assertEquals("", reader.getRawRecord());
-		reader.setRecordDelimiter('i');
+		reader.config.setRecordDelimiter('i');
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("Chicane", reader.get(0));
 		Assert.assertEquals("Love on the Run", reader.get(1));
@@ -1045,9 +1045,9 @@ public class AllTests {
 		Assert.assertEquals(0L, reader.getCurrentRecord());
 		Assert.assertEquals(4, reader.getColumnCount());
 		Assert.assertEquals("", reader.getRawRecord());
-		Assert.assertFalse(reader.getCaptureRawRecord());
-		reader.setCaptureRawRecord(true);
-		Assert.assertTrue(reader.getCaptureRawRecord());
+		Assert.assertFalse(reader.config.getCaptureRawRecord());
+		reader.config.setCaptureRawRecord(true);
+		Assert.assertTrue(reader.config.getCaptureRawRecord());
 		Assert.assertTrue(reader.readRecord());
 		Assert
 				.assertEquals(
@@ -1063,7 +1063,7 @@ public class AllTests {
 		Assert.assertEquals(1L, reader.getCurrentRecord());
 		Assert.assertEquals(4, reader.getColumnCount());
 		Assert.assertFalse(reader.readRecord());
-		Assert.assertTrue(reader.getCaptureRawRecord());
+		Assert.assertTrue(reader.config.getCaptureRawRecord());
 		Assert.assertEquals("", reader.getRawRecord());
 		reader.close();
 	}
@@ -1074,9 +1074,9 @@ public class AllTests {
 				+ "Samuel Barber, Adag\\io for Str\\ings, Class\\ical, Th\\is f\\ield conta\\ins a comma \\, but \\it doesn't matter as \\it \\is escaped";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setUseTextQualifier(false);
-		reader.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
-		reader.setRecordDelimiter('i');
+		reader.config.setUseTextQualifier(false);
+		reader.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
+		reader.config.setRecordDelimiter('i');
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("Chicane", reader.get(0));
 		Assert.assertEquals("Love on the Run", reader.get(1));
@@ -1150,9 +1150,9 @@ public class AllTests {
 		String data = "\"\\n\\r\\t\\b\\f\\e\\v\\a\\z\\d065\\o101\\101\\x41\\u0041\"";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
-		reader.setUseTextQualifier(true);
-		reader.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
+		reader.config.setCaptureRawRecord(true);
+		reader.config.setUseTextQualifier(true);
+		reader.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 		Assert.assertTrue(reader.readRecord());
 		Assert
 				.assertEquals("\n\r\t\b\f\u001B\u000B\u0007zAAAAA", reader
@@ -1171,9 +1171,9 @@ public class AllTests {
 		String data = "\\n\\r\\t\\b\\f\\e\\v\\a\\z\\d065\\o101\\101\\x41\\u0041";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
-		reader.setUseTextQualifier(false);
-		reader.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
+		reader.config.setCaptureRawRecord(true);
+		reader.config.setUseTextQualifier(false);
+		reader.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 		Assert.assertTrue(reader.readRecord());
 		Assert
 				.assertEquals("\n\r\t\b\f\u001B\u000B\u0007zAAAAA", reader
@@ -1192,9 +1192,9 @@ public class AllTests {
 		String data = "\"\\xfa\\u0afa\\xFA\\u0AFA\"";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
-		reader.setUseTextQualifier(true);
-		reader.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
+		reader.config.setCaptureRawRecord(true);
+		reader.config.setUseTextQualifier(true);
+		reader.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("\u00FA\u0AFA\u00FA\u0AFA", reader.get(0));
 		Assert.assertEquals("\"\\xfa\\u0afa\\xFA\\u0AFA\"", reader
@@ -1210,9 +1210,9 @@ public class AllTests {
 		String data = "\\xfa\\u0afa\\xFA\\u0AFA";
 
 		CsvReader reader = CsvReader.parse(data);
-		reader.setCaptureRawRecord(true);
-		reader.setUseTextQualifier(false);
-		reader.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
+		reader.config.setCaptureRawRecord(true);
+		reader.config.setUseTextQualifier(false);
+		reader.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("\u00FA\u0AFA\u00FA\u0AFA", reader.get(0));
 		Assert.assertEquals("\\xfa\\u0afa\\xFA\\u0AFA", reader.getRawRecord());
@@ -1421,10 +1421,10 @@ public class AllTests {
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
 		CsvWriter writer = new CsvWriter(stream, ',', Charset
 				.forName("ISO-8859-1"));
-		Assert.assertEquals(CsvWriter.ESCAPE_MODE_DOUBLED, writer
+		Assert.assertEquals(CsvReader.EscapeMode.DOUBLED, writer
 				.getEscapeMode());
-		writer.setEscapeMode(CsvWriter.ESCAPE_MODE_BACKSLASH);
-		Assert.assertEquals(CsvWriter.ESCAPE_MODE_BACKSLASH, writer
+		writer.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
+		Assert.assertEquals(CsvReader.EscapeMode.BACKSLASH, writer
 				.getEscapeMode());
 		writer.write("1,2");
 		writer.write("3");
@@ -1454,7 +1454,7 @@ public class AllTests {
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
 		CsvWriter writer = new CsvWriter(stream, ',', Charset
 				.forName("ISO-8859-1"));
-		writer.setEscapeMode(CsvWriter.ESCAPE_MODE_BACKSLASH);
+		writer.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 		writer.setUseTextQualifier(false);
 		writer.write("1,2");
 		writer.write("3");
@@ -1584,7 +1584,7 @@ public class AllTests {
 	@Test
 	public void test83() throws Exception {
 		CsvReader reader = CsvReader.parse(generateString('a', 100001));
-		reader.setSafetySwitch(false);
+		reader.config.setSafetySwitch(false);
 		reader.readRecord();
 		reader.close();
 	}
@@ -1600,7 +1600,7 @@ public class AllTests {
 		holder.append("a");
 
 		CsvReader reader = CsvReader.parse(holder.toString());
-		reader.setSafetySwitch(false);
+		reader.config.setSafetySwitch(false);
 		reader.readRecord();
 		reader.close();
 	}
@@ -1923,7 +1923,7 @@ public class AllTests {
 		writer.write("#123");
 		writer.endRecord();
 
-		writer.setEscapeMode(CsvWriter.ESCAPE_MODE_BACKSLASH);
+		writer.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 		writer.setUseTextQualifier(false);
 
 		writer.write("#123");
@@ -1951,7 +1951,7 @@ public class AllTests {
 				.forName("ISO-8859-1"));
 		writer.setRecordDelimiter(';');
 		writer.setUseTextQualifier(false);
-		writer.setEscapeMode(CsvWriter.ESCAPE_MODE_BACKSLASH);
+		writer.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 
 		writer.write("1;2");
 		writer.endRecord();
@@ -1974,7 +1974,7 @@ public class AllTests {
 		CsvWriter writer = new CsvWriter(stream, ',', Charset
 				.forName("ISO-8859-1"));
 		writer.setUseTextQualifier(false);
-		writer.setEscapeMode(CsvWriter.ESCAPE_MODE_BACKSLASH);
+		writer.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 
 		writer.write("1,\\\r\n2");
 		writer.endRecord();
@@ -2001,7 +2001,7 @@ public class AllTests {
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
 		CsvWriter writer = new CsvWriter(stream, ',', Charset
 				.forName("ISO-8859-1"));
-		writer.setEscapeMode(CsvWriter.ESCAPE_MODE_BACKSLASH);
+		writer.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 
 		writer.write("1,\\2");
 		writer.endRecord();
@@ -2019,9 +2019,9 @@ public class AllTests {
 	@Test
 	public void test135() throws Exception {
 		CsvReader reader = CsvReader.parse("1\n\n1\r\r1\r\n\r\n1\n\r1");
-		Assert.assertTrue(reader.getSkipEmptyRecords());
-		reader.setSkipEmptyRecords(false);
-		Assert.assertFalse(reader.getSkipEmptyRecords());
+		Assert.assertTrue(reader.config.getSkipEmptyRecords());
+		reader.config.setSkipEmptyRecords(false);
+		Assert.assertFalse(reader.config.getSkipEmptyRecords());
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals(1, reader.getColumnCount());
 		Assert.assertEquals("1", reader.get(0));
@@ -2065,7 +2065,7 @@ public class AllTests {
 	@Test
 	public void test136() throws Exception {
 		CsvReader reader = CsvReader.parse("1\n\n1\r\r1\r\n\r\n1\n\r1");
-		Assert.assertTrue(reader.getSkipEmptyRecords());
+		Assert.assertTrue(reader.config.getSkipEmptyRecords());
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals(1, reader.getColumnCount());
 		Assert.assertEquals("1", reader.get(0));
@@ -2093,10 +2093,10 @@ public class AllTests {
 	@Test
 	public void test137() throws Exception {
 		CsvReader reader = CsvReader.parse("1;; ;1");
-		reader.setRecordDelimiter(';');
-		Assert.assertTrue(reader.getSkipEmptyRecords());
-		reader.setSkipEmptyRecords(false);
-		Assert.assertFalse(reader.getSkipEmptyRecords());
+		reader.config.setRecordDelimiter(';');
+		Assert.assertTrue(reader.config.getSkipEmptyRecords());
+		reader.config.setSkipEmptyRecords(false);
+		Assert.assertFalse(reader.config.getSkipEmptyRecords());
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals(1, reader.getColumnCount());
 		Assert.assertEquals("1", reader.get(0));
@@ -2120,8 +2120,8 @@ public class AllTests {
 	@Test
 	public void test138() throws Exception {
 		CsvReader reader = CsvReader.parse("1;; ;1");
-		reader.setRecordDelimiter(';');
-		Assert.assertTrue(reader.getSkipEmptyRecords());
+		reader.config.setRecordDelimiter(';');
+		Assert.assertTrue(reader.config.getSkipEmptyRecords());
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals(1, reader.getColumnCount());
 		Assert.assertEquals("1", reader.get(0));
@@ -2157,7 +2157,7 @@ public class AllTests {
 	public void test144() throws Exception {
 		CsvReader reader = CsvReader.parse("\"" + generateString('a', 100000)
 				+ "\"");
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals(generateString('a', 100000), reader.get(0));
 		Assert.assertEquals("\"" + generateString('a', 100000) + "\"", reader
@@ -2170,7 +2170,7 @@ public class AllTests {
 	public void test145() throws Exception {
 		CsvReader reader = CsvReader.parse("\"" + generateString('a', 100001)
 				+ "\"");
-		reader.setSafetySwitch(false);
+		reader.config.setSafetySwitch(false);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals(generateString('a', 100001), reader.get(0));
 		Assert.assertFalse(reader.readRecord());
@@ -2200,8 +2200,8 @@ public class AllTests {
 		}
 
 		CsvReader reader = CsvReader.parse(data.toString());
-		reader.setUseTextQualifier(false);
-		reader.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
+		reader.config.setUseTextQualifier(false);
+		reader.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals(generateString('\b', 10000), reader.get(0));
 		Assert.assertFalse(reader.readRecord());
@@ -2215,7 +2215,7 @@ public class AllTests {
 		// plus what's in the raw buffer
 		CsvReader reader = CsvReader.parse("\"" + generateString('a', 100000)
 				+ "\"\r\n" + generateString('a', 100000));
-		reader.setCaptureRawRecord(true);
+		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals(generateString('a', 100000), reader.get(0));
 		Assert.assertEquals("\"" + generateString('a', 100000) + "\"", reader
@@ -2281,10 +2281,12 @@ public class AllTests {
 			super("");
 		}
 
+		@Override
 		public int read(char[] buffer, int index, int count) throws IOException {
 			throw new IOException("Read failed.");
 		}
 
+		@Override
 		public void close() {
 			DisposeCalled = true;
 		}

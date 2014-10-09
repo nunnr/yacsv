@@ -57,18 +57,20 @@ public class CsvReader implements AutoCloseable {
 	private char					lastLetter;
 	private char					currentLetter;
 	
+	/** Configuration accessor - getters and setters for CsvReader behaviour options are exposed here. */
+	public final Config		config						= new Config();
 	// these are all the values for switches that the user is may set
-	public char				textQualifier				= Letters.QUOTE;
-	public boolean			trimWhitespace				= true;
-	public boolean			useTextQualifier			= true;
-	public char				cellDelimiter				= Letters.COMMA;
-	public RowDelimiter		rowDelimiter				= new RowDelimiter(Letters.CR, Letters.LF);
-	public char				comment						= Letters.POUND;
-	public boolean			useComments					= false;
-	public EscapeMode		escapeMode					= CsvReader.EscapeMode.DOUBLED;
-	public SafetyLimiter	safetyLimit					= new SafetyLimiter();
-	public boolean			skipEmptyRecords			= true;
-	public boolean			captureRawRecord			= false;
+	private char			textQualifier				= Letters.QUOTE;
+	private boolean			trimWhitespace				= true;
+	private boolean			useTextQualifier			= true;
+	private char			cellDelimiter				= Letters.COMMA;
+	private RowDelimiter	rowDelimiter				= new RowDelimiter(Letters.CR, Letters.LF);
+	private char			comment						= Letters.POUND;
+	private boolean			useComments					= false;
+	private EscapeMode		escapeMode					= CsvReader.EscapeMode.DOUBLED;
+	private SafetyLimiter	safetyLimit					= new SafetyLimiter();
+	private boolean			skipEmptyRecords			= true;
+	private boolean			captureRawRecord			= false;
 	
 	private class Buffer {
 		public char[]	buffer;
@@ -161,14 +163,14 @@ public class CsvReader implements AutoCloseable {
 		}
 	}
 	
-	private class ComplexEscape {
+	protected class ComplexEscape {
 		private static final int	UNICODE	= 1;
 		private static final int	OCTAL	= 2;
 		private static final int	DECIMAL	= 3;
 		private static final int	HEX		= 4;
 	}
 	
-	private class Letters {
+	protected class Letters {
 		public static final char	LF				= '\n';
 		public static final char	CR				= '\r';
 		public static final char	QUOTE			= '"';
@@ -190,6 +192,17 @@ public class CsvReader implements AutoCloseable {
 		DOUBLED,
 		/** Use a backslash character before the text qualifier to represent an occurance of the text qualifier. */
 		BACKSLASH;
+	}
+	
+	/** Creates a {@link com.csvreader.CsvReader CsvReader} object using a string of data as the source.&nbsp;Uses ISO-8859-1 as the {@link java.nio.charset.Charset Charset}.
+	 * 
+	 * @param data The String of data to use as the source.
+	 * @return A {@link com.csvreader.CsvReader CsvReader} object using the String of data as the source. */
+	public static CsvReader parse(String data) {
+		if (data == null) {
+			throw new IllegalArgumentException("Parameter data can not be null.");
+		}
+		return new CsvReader(new StringReader(data));
 	}
 	
 	/** Constructs a {@link com.csvreader.CsvReader CsvReader} object using a {@link java.io.Reader Reader} object as the data source.
@@ -266,161 +279,163 @@ public class CsvReader implements AutoCloseable {
 		}
 	}
 	
-	public boolean getCaptureRawRecord() {
-		return captureRawRecord;
-	}
+	public class Config {
+		
+		private Config(){}
 	
-	public void setCaptureRawRecord(boolean captureRawRecord) {
-		this.captureRawRecord = captureRawRecord;
-	}
-	
-	public String getRawRecord() throws IOException {
-		return buildRawRecord();
-	}
-	
-	/** Gets whether leading and trailing whitespace characters are being trimmed from non-textqualified column data. Default is true.
-	 * 
-	 * @return Whether leading and trailing whitespace characters are being trimmed from non-textqualified column data. */
-	public boolean getTrimWhitespace() {
-		return trimWhitespace;
-	}
-	
-	/** Sets whether leading and trailing whitespace characters should be trimmed from non-textqualified column data or not. Default is true.
-	 * 
-	 * @param trimWhitespace Whether leading and trailing whitespace characters should be trimmed from non-textqualified column data or not. */
-	public void setTrimWhitespace(boolean trimWhitespace) {
-		this.trimWhitespace = trimWhitespace;
-	}
-	
-	/** Gets the character being used as the column delimiter. Default is comma, ','.
-	 * 
-	 * @return The character being used as the column delimiter. */
-	public char getDelimiter() {
-		return cellDelimiter;
-	}
-	
-	/** Sets the character to use as the column delimiter. Default is comma, ','.
-	 * 
-	 * @param delimiter The character to use as the column delimiter. */
-	public void setDelimiter(char delimiter) {
-		cellDelimiter = delimiter;
-	}
-	
-	/** Returns the current single record delimiter, or pair of delimiters (typically for "\r\n" usage). */
-	public char[] getRecordDelimiter() {
-		return rowDelimiter.getDelimiter();
-	}
-	
-	/** Sets the character to use as the record delimiter.
-	 * 
-	 * @param recordDelimiter The character to use as the record delimiter. Default is combination of standard end of line characters for Windows, Unix, or Mac. */
-	public void setRecordDelimiter(char delimiterOne) {
-		rowDelimiter = new RowDelimiterSingleChar(delimiterOne);
-	}
-	
-	/** Sets the characters to use as the record delimiter, e.g \r\n for Windows line breaks.
-	 * 
-	 * @param recordDelimiter The characters to use as the record delimiter. Default is combination of standard end of line characters for Windows, Unix, or Mac. */
-	public void setRecordDelimiter(char delimiterOne, char delimiterTwo) {
-		rowDelimiter = new RowDelimiter(delimiterOne, delimiterTwo);
-	}
-	
-	/** Gets the character to use as a text qualifier in the data.
-	 * 
-	 * @return The character to use as a text qualifier in the data. */
-	public char getTextQualifier() {
-		return textQualifier;
-	}
-	
-	/** Sets the character to use as a text qualifier in the data.
-	 * 
-	 * @param textQualifier The character to use as a text qualifier in the data. */
-	public void setTextQualifier(char textQualifier) {
-		this.textQualifier = textQualifier;
-	}
-	
-	/** Whether text qualifiers will be used while parsing or not.
-	 * 
-	 * @return Whether text qualifiers will be used while parsing or not. */
-	public boolean getUseTextQualifier() {
-		return useTextQualifier;
-	}
-	
-	/** Sets whether text qualifiers will be used while parsing or not.
-	 * 
-	 * @param useTextQualifier */
-	public void setUseTextQualifier(boolean useTextQualifier) {
-		this.useTextQualifier = useTextQualifier;
-	}
-	
-	/** Gets the character being used as a comment signal.
-	 * 
-	 * @return The character being used as a comment signal. */
-	public char getComment() {
-		return comment;
-	}
-	
-	/** Sets the character to use as a comment signal.
-	 * 
-	 * @param comment The character to use as a comment signal. */
-	public void setComment(char comment) {
-		this.comment = comment;
-	}
-	
-	/** Gets whether comments are being looked for while parsing or not.
-	 * 
-	 * @return Whether comments are being looked for while parsing or not. */
-	public boolean getUseComments() {
-		return useComments;
-	}
-	
-	/** Sets whether comments are being looked for while parsing or not.
-	 * 
-	 * @param useComments Whether comments are being looked for while parsing or not. */
-	public void setUseComments(boolean useComments) {
-		this.useComments = useComments;
-	}
-	
-	/** Gets the current way to escape an occurance of the text qualifier inside qualified data.
-	 * 
-	 * @return The current way to escape an occurance of the text qualifier inside qualified data. */
-	public EscapeMode getEscapeMode() {
-		return escapeMode;
-	}
-	
-	/** Sets the current way to escape an occurance of the text qualifier inside qualified data.
-	 * 
-	 * @param escapeMode The way to escape an occurance of the text qualifier inside qualified data.
-	 * @exception IllegalArgumentException When an illegal value is specified for escapeMode. */
-	public void setEscapeMode(EscapeMode escapeMode) throws IllegalArgumentException {
-		this.escapeMode = escapeMode;
-	}
-	
-	public boolean getSkipEmptyRecords() {
-		return skipEmptyRecords;
-	}
-	
-	public void setSkipEmptyRecords(boolean skipEmptyRecords) {
-		this.skipEmptyRecords = skipEmptyRecords;
-	}
-	
-	/** Safety caution to prevent the parser from using large amounts of memory in the case where parsing settings like file encodings don't end up matching the actual format of a file. This switch can be turned off if the file format is known and tested. With the switch off, the max column lengths and max column count per record supported by the parser will greatly increase. Default is true.
-	 * 
-	 * @return The current setting of the safety switch. */
-	public boolean getSafetySwitch() {
-		return safetyLimit.getClass().equals(SafetyLimiter.class);
-	}
-	
-	/** Safety caution to prevent the parser from using large amounts of memory in the case where parsing settings like file encodings don't end up matching the actual format of a file. This switch can be turned off if the file format is known and tested. With the switch off, the max column lengths and max column count per record supported by the parser will greatly increase. Default is true.
-	 * 
-	 * @param safetySwitch */
-	public void setSafetySwitch(boolean safetySwitch) {
-		if (safetySwitch) {
-			safetyLimit = new SafetyLimiter();
+		public boolean getCaptureRawRecord() {
+			return captureRawRecord;
 		}
-		else {
-			safetyLimit = new SafetyLimiterNoOp();
+		
+		public void setCaptureRawRecord(boolean capture) {
+			captureRawRecord = capture;
 		}
+		
+		/** Gets whether leading and trailing whitespace characters are being trimmed from non-textqualified column data. Default is true.
+		 * 
+		 * @return Whether leading and trailing whitespace characters are being trimmed from non-textqualified column data. */
+		public boolean getTrimWhitespace() {
+			return trimWhitespace;
+		}
+		
+		/** Sets whether leading and trailing whitespace characters should be trimmed from non-textqualified column data or not. Default is true.
+		 * 
+		 * @param trimWhitespace Whether leading and trailing whitespace characters should be trimmed from non-textqualified column data or not. */
+		public void setTrimWhitespace(boolean trim) {
+			trimWhitespace = trim;
+		}
+		
+		/** Gets the character being used as the column delimiter. Default is comma, ','.
+		 * 
+		 * @return The character being used as the column delimiter. */
+		public char getDelimiter() {
+			return cellDelimiter;
+		}
+		
+		/** Sets the character to use as the column delimiter. Default is comma, ','.
+		 * 
+		 * @param delimiter The character to use as the column delimiter. */
+		public void setDelimiter(char delimiter) {
+			cellDelimiter = delimiter;
+		}
+		
+		/** Returns the current single record delimiter, or pair of delimiters (typically for "\r\n" usage). */
+		public char[] getRecordDelimiter() {
+			return rowDelimiter.getDelimiter();
+		}
+		
+		/** Sets the character to use as the record delimiter.
+		 * 
+		 * @param recordDelimiter The character to use as the record delimiter. Default is combination of standard end of line characters for Windows, Unix, or Mac. */
+		public void setRecordDelimiter(char delimiterOne) {
+			rowDelimiter = new RowDelimiterSingleChar(delimiterOne);
+		}
+		
+		/** Sets the characters to use as the record delimiter, e.g \r\n for Windows line breaks.
+		 * 
+		 * @param recordDelimiter The characters to use as the record delimiter. Default is combination of standard end of line characters for Windows, Unix, or Mac. */
+		public void setRecordDelimiter(char delimiterOne, char delimiterTwo) {
+			rowDelimiter = new RowDelimiter(delimiterOne, delimiterTwo);
+		}
+		
+		/** Gets the character to use as a text qualifier in the data.
+		 * 
+		 * @return The character to use as a text qualifier in the data. */
+		public char getTextQualifier() {
+			return textQualifier;
+		}
+		
+		/** Sets the character to use as a text qualifier in the data.
+		 * 
+		 * @param textQualifier The character to use as a text qualifier in the data. */
+		public void setTextQualifier(char qualifier) {
+			textQualifier = qualifier;
+		}
+		
+		/** Whether text qualifiers will be used while parsing or not.
+		 * 
+		 * @return Whether text qualifiers will be used while parsing or not. */
+		public boolean getUseTextQualifier() {
+			return useTextQualifier;
+		}
+		
+		/** Sets whether text qualifiers will be used while parsing or not.
+		 * 
+		 * @param useTextQualifier */
+		public void setUseTextQualifier(boolean use) {
+			useTextQualifier = use;
+		}
+		
+		/** Gets the character being used as a comment signal.
+		 * 
+		 * @return The character being used as a comment signal. */
+		public char getComment() {
+			return comment;
+		}
+		
+		/** Sets the character to use as a comment signal.
+		 * 
+		 * @param comment The character to use as a comment signal. */
+		public void setComment(char commentChar) {
+			comment = commentChar;
+		}
+		
+		/** Gets whether comments are being looked for while parsing or not.
+		 * 
+		 * @return Whether comments are being looked for while parsing or not. */
+		public boolean getUseComments() {
+			return useComments;
+		}
+		
+		/** Sets whether comments are being looked for while parsing or not.
+		 * 
+		 * @param useComments Whether comments are being looked for while parsing or not. */
+		public void setUseComments(boolean use) {
+			useComments = use;
+		}
+		
+		/** Gets the current way to escape an occurance of the text qualifier inside qualified data.
+		 * 
+		 * @return The current way to escape an occurance of the text qualifier inside qualified data. */
+		public EscapeMode getEscapeMode() {
+			return escapeMode;
+		}
+		
+		/** Sets the current way to escape an occurance of the text qualifier inside qualified data.
+		 * 
+		 * @param escapeMode The way to escape an occurance of the text qualifier inside qualified data.
+		 * @exception IllegalArgumentException When an illegal value is specified for escapeMode. */
+		public void setEscapeMode(EscapeMode mode) throws IllegalArgumentException {
+			escapeMode = mode;
+		}
+		
+		public boolean getSkipEmptyRecords() {
+			return skipEmptyRecords;
+		}
+		
+		public void setSkipEmptyRecords(boolean skip) {
+			skipEmptyRecords = skip;
+		}
+		
+		/** Safety caution to prevent the parser from using large amounts of memory in the case where parsing settings like file encodings don't end up matching the actual format of a file. This switch can be turned off if the file format is known and tested. With the switch off, the max column lengths and max column count per record supported by the parser will greatly increase. Default is true.
+		 * 
+		 * @return The current setting of the safety switch. */
+		public boolean getSafetySwitch() {
+			return safetyLimit.getClass().equals(SafetyLimiter.class);
+		}
+		
+		/** Safety caution to prevent the parser from using large amounts of memory in the case where parsing settings like file encodings don't end up matching the actual format of a file. This switch can be turned off if the file format is known and tested. With the switch off, the max column lengths and max column count per record supported by the parser will greatly increase. Default is true.
+		 * 
+		 * @param safetySwitch */
+		public void setSafetySwitch(boolean safetySwitch) {
+			if (safetySwitch) {
+				safetyLimit = new SafetyLimiter();
+			}
+			else {
+				safetyLimit = new SafetyLimiterNoOp();
+			}
+		}
+		
 	}
 	
 	/** Gets the count of columns found in this record.
@@ -428,13 +443,6 @@ public class CsvReader implements AutoCloseable {
 	 * @return The count of columns found in this record. */
 	public int getColumnCount() {
 		return columnsCount;
-	}
-	
-	/** Gets the index of the current record.
-	 * 
-	 * @return The index of the current record. */
-	public long getCurrentRecord() {
-		return currentRecord - 1;
 	}
 	
 	/** Gets the count of headers read in by a previous call to {@link com.csvreader.CsvReader#readHeaders readHeaders()}.
@@ -511,15 +519,31 @@ public class CsvReader implements AutoCloseable {
 		return get(getIndex(headerName));
 	}
 	
-	/** Creates a {@link com.csvreader.CsvReader CsvReader} object using a string of data as the source.&nbsp;Uses ISO-8859-1 as the {@link java.nio.charset.Charset Charset}.
+	/** Gets the index of the current record.
 	 * 
-	 * @param data The String of data to use as the source.
-	 * @return A {@link com.csvreader.CsvReader CsvReader} object using the String of data as the source. */
-	public static CsvReader parse(String data) {
-		if (data == null) {
-			throw new IllegalArgumentException("Parameter data can not be null.");
+	 * @return The index of the current record. */
+	public long getCurrentRecord() {
+		return currentRecord - 1;
+	}
+	
+	public String getRawRecord() throws IOException {
+		checkClosed();
+		
+		String rawRecord;
+		
+		if (captureRawRecord) {
+			rawRecord = new String(rawBuffer.buffer, 0, rawBuffer.position);
+			
+			// When hasMoreData == false, all data has already been copied to the raw buffer.
+			if (hasMoreData && dataBuffer.position > dataBuffer.lineStart) {
+				rawRecord += new String(dataBuffer.buffer, dataBuffer.lineStart, dataBuffer.position - dataBuffer.lineStart - 1);
+			}
 		}
-		return new CsvReader(new StringReader(data));
+		else {
+			rawRecord = "";
+		}
+		
+		return rawRecord;
 	}
 	
 	/** Reads another record.
@@ -996,26 +1020,6 @@ public class CsvReader implements AutoCloseable {
 		return hasReadNextLine;
 	}
 	
-	private String buildRawRecord() throws IOException {
-		checkClosed();
-		
-		String rawRecord;
-		
-		if (captureRawRecord) {
-			rawRecord = new String(rawBuffer.buffer, 0, rawBuffer.position);
-			
-			// When hasMoreData == false, all data has already been copied to the raw buffer.
-			if (hasMoreData && dataBuffer.position > dataBuffer.lineStart) {
-				rawRecord += new String(dataBuffer.buffer, dataBuffer.lineStart, dataBuffer.position - dataBuffer.lineStart - 1);
-			}
-		}
-		else {
-			rawRecord = "";
-		}
-		
-		return rawRecord;
-	}
-	
 	/** @exception IOException Thrown if an error occurs while reading data from the source stream. */
 	private void readData() throws IOException {
 		updateCurrentValue();
@@ -1253,8 +1257,7 @@ public class CsvReader implements AutoCloseable {
 	}
 	
 	/** Closes and releases all related resources. */
-	@Override
-	public void close() throws Exception {
+	public void close() {
 		close(true);
 	}
 	
@@ -1288,7 +1291,7 @@ public class CsvReader implements AutoCloseable {
 		}
 	}
 	
-	private static char hexToDec(char hex) {
+	private char hexToDec(char hex) {
 		return (char) (hex >= 'a' ? hex - 'a' + 10 : hex >= 'A' ? hex - 'A' + 10 : hex - '0');
 	}
 	
