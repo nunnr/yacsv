@@ -56,6 +56,10 @@ public class CsvReader implements AutoCloseable {
 	private Map<String, Integer>	headerIndex					= new HashMap<String, Integer>();
 	private char					lastLetter;
 	private char					currentLetter;
+	private boolean					readingComplexEscape;
+	private int						escape;
+	private int						escapeLength;
+	private char					escapeValue;
 	
 	/** Configuration accessor - getters and setters for CsvReader behaviour options are exposed here. */
 	public final Config		config						= new Config();
@@ -589,10 +593,10 @@ public class CsvReader implements AutoCloseable {
 						
 						boolean eatingTrailingJunk = false;
 						boolean lastLetterWasEscape = false;
-						boolean readingComplexEscape = false;
-						int escape = ComplexEscape.UNICODE;
-						int escapeLength = 0;
-						char escapeValue = Letters.NULL;
+						readingComplexEscape = false;
+						escape = ComplexEscape.UNICODE;
+						escapeLength = 0;
+						escapeValue = Letters.NULL;
 						
 						dataBuffer.position++;
 						
@@ -617,53 +621,7 @@ public class CsvReader implements AutoCloseable {
 									}
 								}
 								else if (readingComplexEscape) {
-									escapeLength++;
-									
-									switch (escape) {
-										case ComplexEscape.UNICODE:
-											escapeValue *= (char) 16;
-											escapeValue += hexToDec(currentLetter);
-											
-											if (escapeLength == 4) {
-												readingComplexEscape = false;
-											}
-											
-											break;
-										case ComplexEscape.OCTAL:
-											escapeValue *= (char) 8;
-											escapeValue += (char) (currentLetter - '0');
-											
-											if (escapeLength == 3) {
-												readingComplexEscape = false;
-											}
-											
-											break;
-										case ComplexEscape.DECIMAL:
-											escapeValue *= (char) 10;
-											escapeValue += (char) (currentLetter - '0');
-											
-											if (escapeLength == 3) {
-												readingComplexEscape = false;
-											}
-											
-											break;
-										case ComplexEscape.HEX:
-											escapeValue *= (char) 16;
-											escapeValue += hexToDec(currentLetter);
-											
-											if (escapeLength == 2) {
-												readingComplexEscape = false;
-											}
-											
-											break;
-									}
-									
-									if (!readingComplexEscape) {
-										appendLetter(escapeValue);
-									}
-									else {
-										dataBuffer.columnStart = dataBuffer.position + 1;
-									}
+									handleComplexEscape();
 								}
 								else if (currentLetter == textQualifier) {
 									if (lastLetterWasEscape) {
@@ -681,84 +639,8 @@ public class CsvReader implements AutoCloseable {
 									}
 								}
 								else if (escapeMode == EscapeMode.BACKSLASH && lastLetterWasEscape) {
-									switch (currentLetter) {
-										case 'n':
-											appendLetter(Letters.LF);
-											break;
-										case 'r':
-											appendLetter(Letters.CR);
-											break;
-										case 't':
-											appendLetter(Letters.TAB);
-											break;
-										case 'b':
-											appendLetter(Letters.BACKSPACE);
-											break;
-										case 'f':
-											appendLetter(Letters.FORM_FEED);
-											break;
-										case 'e':
-											appendLetter(Letters.ESCAPE);
-											break;
-										case 'v':
-											appendLetter(Letters.VERTICAL_TAB);
-											break;
-										case 'a':
-											appendLetter(Letters.ALERT);
-											break;
-										case '0':
-										case '1':
-										case '2':
-										case '3':
-										case '4':
-										case '5':
-										case '6':
-										case '7':
-											escape = ComplexEscape.OCTAL;
-											readingComplexEscape = true;
-											escapeLength = 1;
-											escapeValue = (char) (currentLetter - '0');
-											dataBuffer.columnStart = dataBuffer.position + 1;
-											break;
-										case 'u':
-										case 'x':
-										case 'o':
-										case 'd':
-										case 'U':
-										case 'X':
-										case 'O':
-										case 'D':
-											switch (currentLetter) {
-												case 'u':
-												case 'U':
-													escape = ComplexEscape.UNICODE;
-													break;
-												case 'x':
-												case 'X':
-													escape = ComplexEscape.HEX;
-													break;
-												case 'o':
-												case 'O':
-													escape = ComplexEscape.OCTAL;
-													break;
-												case 'd':
-												case 'D':
-													escape = ComplexEscape.DECIMAL;
-													break;
-											}
-											
-											readingComplexEscape = true;
-											escapeLength = 0;
-											escapeValue = (char) 0;
-											dataBuffer.columnStart = dataBuffer.position + 1;
-											
-											break;
-										default:
-											break;
-									}
-									
+									handleEscapee();
 									lastLetterWasEscape = false;
-									// can only happen for ESCAPE_MODE_BACKSLASH
 								}
 								else if (currentLetter == escapeChar) {
 									updateCurrentValue();
@@ -828,10 +710,10 @@ public class CsvReader implements AutoCloseable {
 						startedColumn = true;
 						dataBuffer.columnStart = dataBuffer.position;
 						boolean lastLetterWasBackslash = false;
-						boolean readingComplexEscape = false;
-						int escape = ComplexEscape.UNICODE;
-						int escapeLength = 0;
-						char escapeValue = Letters.NULL;
+						readingComplexEscape = false;
+						escape = ComplexEscape.UNICODE;
+						escapeLength = 0;
+						escapeValue = Letters.NULL;
 						
 						boolean firstLoop = true;
 						
@@ -855,131 +737,10 @@ public class CsvReader implements AutoCloseable {
 									}
 								}
 								else if (readingComplexEscape) {
-									escapeLength++;
-									
-									switch (escape) {
-										case ComplexEscape.UNICODE:
-											escapeValue *= (char) 16;
-											escapeValue += hexToDec(currentLetter);
-											
-											if (escapeLength == 4) {
-												readingComplexEscape = false;
-											}
-											
-											break;
-										case ComplexEscape.OCTAL:
-											escapeValue *= (char) 8;
-											escapeValue += (char) (currentLetter - '0');
-											
-											if (escapeLength == 3) {
-												readingComplexEscape = false;
-											}
-											
-											break;
-										case ComplexEscape.DECIMAL:
-											escapeValue *= (char) 10;
-											escapeValue += (char) (currentLetter - '0');
-											
-											if (escapeLength == 3) {
-												readingComplexEscape = false;
-											}
-											
-											break;
-										case ComplexEscape.HEX:
-											escapeValue *= (char) 16;
-											escapeValue += hexToDec(currentLetter);
-											
-											if (escapeLength == 2) {
-												readingComplexEscape = false;
-											}
-											
-											break;
-									}
-									
-									if (!readingComplexEscape) {
-										appendLetter(escapeValue);
-									}
-									else {
-										dataBuffer.columnStart = dataBuffer.position + 1;
-									}
+									handleComplexEscape();
 								}
 								else if (escapeMode == EscapeMode.BACKSLASH && lastLetterWasBackslash) {
-									switch (currentLetter) {
-										case 'n':
-											appendLetter(Letters.LF);
-											break;
-										case 'r':
-											appendLetter(Letters.CR);
-											break;
-										case 't':
-											appendLetter(Letters.TAB);
-											break;
-										case 'b':
-											appendLetter(Letters.BACKSPACE);
-											break;
-										case 'f':
-											appendLetter(Letters.FORM_FEED);
-											break;
-										case 'e':
-											appendLetter(Letters.ESCAPE);
-											break;
-										case 'v':
-											appendLetter(Letters.VERTICAL_TAB);
-											break;
-										case 'a':
-											appendLetter(Letters.ALERT);
-											break;
-										case '0':
-										case '1':
-										case '2':
-										case '3':
-										case '4':
-										case '5':
-										case '6':
-										case '7':
-											escape = ComplexEscape.OCTAL;
-											readingComplexEscape = true;
-											escapeLength = 1;
-											escapeValue = (char) (currentLetter - '0');
-											dataBuffer.columnStart = dataBuffer.position + 1;
-											break;
-										case 'u':
-										case 'x':
-										case 'o':
-										case 'd':
-										case 'U':
-										case 'X':
-										case 'O':
-										case 'D':
-											switch (currentLetter) {
-												case 'u':
-												case 'U':
-													escape = ComplexEscape.UNICODE;
-													break;
-												case 'x':
-												case 'X':
-													escape = ComplexEscape.HEX;
-													break;
-												case 'o':
-												case 'O':
-													escape = ComplexEscape.OCTAL;
-													break;
-												case 'd':
-												case 'D':
-													escape = ComplexEscape.DECIMAL;
-													break;
-											}
-											
-											readingComplexEscape = true;
-											escapeLength = 0;
-											escapeValue = (char) 0;
-											dataBuffer.columnStart = dataBuffer.position + 1;
-											
-											break;
-										default:
-											break;
-									}
-									
+									handleEscapee();
 									lastLetterWasBackslash = false;
 								}
 								else if (currentLetter == cellDelimiter) {
@@ -1018,6 +779,138 @@ public class CsvReader implements AutoCloseable {
 		}
 		
 		return hasReadNextLine;
+	}
+	
+	private void handleComplexEscape() {
+		escapeLength++;
+		
+		switch (escape) {
+			case ComplexEscape.UNICODE:
+				escapeValue *= (char) 16;
+				escapeValue += hexToDec(currentLetter);
+				
+				if (escapeLength == 4) {
+					readingComplexEscape = false;
+				}
+				
+				break;
+			case ComplexEscape.OCTAL:
+				escapeValue *= (char) 8;
+				escapeValue += (char) (currentLetter - '0');
+				
+				if (escapeLength == 3) {
+					readingComplexEscape = false;
+				}
+				
+				break;
+			case ComplexEscape.DECIMAL:
+				escapeValue *= (char) 10;
+				escapeValue += (char) (currentLetter - '0');
+				
+				if (escapeLength == 3) {
+					readingComplexEscape = false;
+				}
+				
+				break;
+			case ComplexEscape.HEX:
+				escapeValue *= (char) 16;
+				escapeValue += hexToDec(currentLetter);
+				
+				if (escapeLength == 2) {
+					readingComplexEscape = false;
+				}
+				
+				break;
+			default:
+				break;
+		}
+		
+		if (!readingComplexEscape) {
+			appendLetter(escapeValue);
+		}
+		else {
+			dataBuffer.columnStart = dataBuffer.position + 1;
+		}
+	}
+	
+	private void handleEscapee() {
+		switch (currentLetter) {
+			case 'n':
+				appendLetter(Letters.LF);
+				break;
+			case 'r':
+				appendLetter(Letters.CR);
+				break;
+			case 't':
+				appendLetter(Letters.TAB);
+				break;
+			case 'b':
+				appendLetter(Letters.BACKSPACE);
+				break;
+			case 'f':
+				appendLetter(Letters.FORM_FEED);
+				break;
+			case 'e':
+				appendLetter(Letters.ESCAPE);
+				break;
+			case 'v':
+				appendLetter(Letters.VERTICAL_TAB);
+				break;
+			case 'a':
+				appendLetter(Letters.ALERT);
+				break;
+			case '0':
+			case '1':
+			case '2':
+			case '3':
+			case '4':
+			case '5':
+			case '6':
+			case '7':
+				escape = ComplexEscape.OCTAL;
+				readingComplexEscape = true;
+				escapeLength = 1;
+				escapeValue = (char) (currentLetter - '0');
+				dataBuffer.columnStart = dataBuffer.position + 1;
+				break;
+			case 'u':
+			case 'x':
+			case 'o':
+			case 'd':
+			case 'U':
+			case 'X':
+			case 'O':
+			case 'D':
+				switch (currentLetter) {
+					case 'u':
+					case 'U':
+						escape = ComplexEscape.UNICODE;
+						break;
+					case 'x':
+					case 'X':
+						escape = ComplexEscape.HEX;
+						break;
+					case 'o':
+					case 'O':
+						escape = ComplexEscape.OCTAL;
+						break;
+					case 'd':
+					case 'D':
+						escape = ComplexEscape.DECIMAL;
+						break;
+					default:
+						break;
+				}
+				
+				readingComplexEscape = true;
+				escapeLength = 0;
+				escapeValue = (char) 0;
+				dataBuffer.columnStart = dataBuffer.position + 1;
+				
+				break;
+			default:
+				break;
+		}
 	}
 	
 	/** @exception IOException Thrown if an error occurs while reading data from the source stream. */
