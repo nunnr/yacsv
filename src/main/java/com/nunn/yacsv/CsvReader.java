@@ -1,4 +1,6 @@
-/*
+/* Yet Another CSV Reader. Programmed by Rob Nunn.
+ * Forked from Java CSV: http://www.csvreader.com/java_csv.php http://sourceforge.net/p/javacsv
+ * 
  * Java CSV is a stream based library for reading and writing
  * CSV and other delimited data.
  *   
@@ -33,7 +35,7 @@ import java.text.NumberFormat;
 import java.util.HashMap;
 import java.util.Map;
 
-/** A stream based parser for parsing delimited text data from a file or a stream. */
+/** A streaming design parser for delimited text data. */
 public class CsvReader implements AutoCloseable {
 	
 	private Reader			reader			= null;
@@ -192,16 +194,15 @@ public class CsvReader implements AutoCloseable {
 	}
 	
 	public static enum EscapeMode {
-		/** Double up the text qualifier to represent an occurance of the text qualifier. */
+		/** Double up the text qualifier to represent an occurrence of the text qualifier. */
 		DOUBLED,
-		/** Use a backslash character before the text qualifier to represent an occurance of the text qualifier. */
+		/** Use a backslash character before the text qualifier to represent an occurrence of the text qualifier. */
 		BACKSLASH;
 	}
 	
-	/** Creates a {@link com.csvreader.CsvReader CsvReader} object using a string of data as the source.&nbsp;Uses ISO-8859-1 as the {@link java.nio.charset.Charset Charset}.
-	 * 
-	 * @param data The String of data to use as the source.
-	 * @return A {@link com.csvreader.CsvReader CsvReader} object using the String of data as the source. */
+	/** Creates a {@link com.nunn.yacsv.CsvReader CsvReader} object using a String of data as the source.
+	 * @param data The data source.
+	 * @return A {@link com.nunn.yacsv.CsvReader CsvReader} object using the String of data as the source. */
 	public static CsvReader parse(String data) {
 		if (data == null) {
 			throw new IllegalArgumentException("Parameter data can not be null.");
@@ -209,9 +210,8 @@ public class CsvReader implements AutoCloseable {
 		return new CsvReader(new StringReader(data));
 	}
 	
-	/** Constructs a {@link com.csvreader.CsvReader CsvReader} object using a {@link java.io.Reader Reader} object as the data source.
-	 * 
-	 * @param inputStream The stream to use as the data source. */
+	/** Constructs a {@link com.nunn.yacsv.CsvReader CsvReader} object using a {@link java.io.Reader Reader} object as the data source.
+	 * @param inputReader The data source. */
 	public CsvReader(Reader inputReader) {
 		if (inputReader == null) {
 			throw new IllegalArgumentException("Parameter inputReader can not be null.");
@@ -219,26 +219,23 @@ public class CsvReader implements AutoCloseable {
 		reader = inputReader;
 	}
 	
-	/** Constructs a {@link com.csvreader.CsvReader CsvReader} object using an {@link java.io.InputStream InputStream} object as the data source.
-	 * 
-	 * @param inputStream The stream to use as the data source.
-	 * @param charset The {@link java.nio.charset.Charset Charset} to use while parsing the data. */
+	/** Constructs a {@link com.nunn.yacsv.CsvReader CsvReader} object using an {@link java.io.InputStream InputStream} object as the data source.
+	 * @param inputStream The data source.
+	 * @param charset The {@link java.nio.charset.Charset Charset} to interpret the data. */
 	public CsvReader(InputStream inputStream, Charset charset) {
 		this(newReader(inputStream, charset));
 	}
 	
-	/** Constructs a {@link com.csvreader.CsvReader CsvReader} object using a {@link java.io.file.Path Path} object as the data source.
-	 * 
-	 * @param path The path to use as the data source.
-	 * @param charset The {@link java.nio.charset.Charset Charset} to use while parsing the data. */
+	/** Constructs a {@link com.nunn.yacsv.CsvReader CsvReader} object using a {@link java.io.file.Path Path} object as the data source.
+	 * @param path The path to the data source.
+	 * @param charset The {@link java.nio.charset.Charset Charset} to interpret the data. */
 	public CsvReader(Path path, Charset charset) {
 		this(newReader(path, charset));
 	}
 	
-	/** Constructs a {@link com.csvreader.CsvReader CsvReader} object using the named file as the data source.
-	 * 
-	 * @param fileName The name of the file to use as the data source.
-	 * @param charset The {@link java.nio.charset.Charset Charset} to use while parsing the data. */
+	/** Constructs a {@link com.nunn.yacsv.CsvReader CsvReader} object using the named file as the data source.
+	 * @param fileName The file name to resolve the data source.
+	 * @param charset The {@link java.nio.charset.Charset Charset} to interpret the data. */
 	public CsvReader(String fileName, Charset charset) {
 		this(newReader(fileName, charset));
 	}
@@ -286,151 +283,145 @@ public class CsvReader implements AutoCloseable {
 	public class Config {
 		
 		private Config(){}
-	
+		
+		/** Get value of option to additionally make records available as raw (not column-parsed) data. This adds a performance overhead. Default is FALSE.
+		 * @return Value of option to additionally make records available as raw data. */
 		public boolean getCaptureRawRecord() {
 			return captureRawRecord;
 		}
 		
+		/** Set value of option to additionally make records available as raw (not column-parsed) data. This adds a performance overhead. Default is FALSE.
+		 * @param capture Set TRUE to enable availability of raw record data. */
 		public void setCaptureRawRecord(boolean capture) {
 			captureRawRecord = capture;
 		}
 		
-		/** Gets whether leading and trailing whitespace characters are being trimmed from non-textqualified column data. Default is true.
-		 * 
-		 * @return Whether leading and trailing whitespace characters are being trimmed from non-textqualified column data. */
+		/** Gets value of option to trim leading and trailing whitespace characters from non-textqualified column data. Default is TRUE.
+		 * @return Value of option to trim leading and trailing whitespace characters from non-textqualified column data. */
 		public boolean getTrimWhitespace() {
 			return trimWhitespace;
 		}
 		
-		/** Sets whether leading and trailing whitespace characters should be trimmed from non-textqualified column data or not. Default is true.
-		 * 
-		 * @param trimWhitespace Whether leading and trailing whitespace characters should be trimmed from non-textqualified column data or not. */
+		/** Sets option to trim leading and trailing whitespace characters from non-textqualified column data. Default is TRUE.
+		 * @param trimWhitespace Set TRUE to trim leading and trailing whitespace characters from non-textqualified column data. */
 		public void setTrimWhitespace(boolean trim) {
 			trimWhitespace = trim;
 		}
 		
-		/** Gets the character being used as the column delimiter. Default is comma, ','.
-		 * 
+		/** Gets the character being used as the column delimiter. Default is comma: ,
 		 * @return The character being used as the column delimiter. */
 		public char getDelimiter() {
 			return cellDelimiter;
 		}
 		
-		/** Sets the character to use as the column delimiter. Default is comma, ','.
-		 * 
+		/** Sets the character to use as the column delimiter. Default is comma: ,
 		 * @param delimiter The character to use as the column delimiter. */
 		public void setDelimiter(char delimiter) {
 			cellDelimiter = delimiter;
 		}
 		
-		/** Returns the current single record delimiter, or pair of delimiters (typically for "\r\n" usage). */
+		/** Gets the record delimiter. For CSV this is typically some form of line ending. Default is [\r\n].
+		 * @return Single char or pair of chars (typically for "\r\n" usage) to represent record delimiter. */
 		public char[] getRecordDelimiter() {
 			return rowDelimiter.getDelimiter();
 		}
 		
-		/** Sets the character to use as the record delimiter.
-		 * 
-		 * @param recordDelimiter The character to use as the record delimiter. Default is combination of standard end of line characters for Windows, Unix, or Mac. */
+		/** Sets a single character to use as the record delimiter. By default the delimiter is a pair of chars, not a single char.
+		 * @param recordDelimiter The character to use as the record delimiter. */
 		public void setRecordDelimiter(char delimiterOne) {
 			rowDelimiter = new RowDelimiterSingleChar(delimiterOne);
 		}
 		
-		/** Sets the characters to use as the record delimiter, e.g \r\n for Windows line breaks.
-		 * 
-		 * @param recordDelimiter The characters to use as the record delimiter. Default is combination of standard end of line characters for Windows, Unix, or Mac. */
+		/** Sets a pair of characters to use as the record delimiter, e.g. [\r\n] for Windows line breaks.
+		 * @param recordDelimiter The characters to use as the record delimiter. */
 		public void setRecordDelimiter(char delimiterOne, char delimiterTwo) {
 			rowDelimiter = new RowDelimiter(delimiterOne, delimiterTwo);
 		}
 		
-		/** Gets the character to use as a text qualifier in the data.
-		 * 
+		/** Gets the character to use as a text qualifier in the data. Default is double quote: "
 		 * @return The character to use as a text qualifier in the data. */
 		public char getTextQualifier() {
 			return textQualifier;
 		}
 		
-		/** Sets the character to use as a text qualifier in the data.
-		 * 
+		/** Sets the character to use as a text qualifier in the data. Default is double quote: "
 		 * @param textQualifier The character to use as a text qualifier in the data. */
 		public void setTextQualifier(char qualifier) {
 			textQualifier = qualifier;
 		}
 		
-		/** Whether text qualifiers will be used while parsing or not.
-		 * 
-		 * @return Whether text qualifiers will be used while parsing or not. */
+		/** Gets the value of option to use a text qualifier while parsing. Default is TRUE.
+		 * @return Value of option to use a text qualifier while parsing. */
 		public boolean getUseTextQualifier() {
 			return useTextQualifier;
 		}
 		
-		/** Sets whether text qualifiers will be used while parsing or not.
-		 * 
-		 * @param useTextQualifier */
+		/** Sets the option to use a text qualifier while parsing. Default is TRUE.
+		 * @param useTextQualifier Set TRUE to enable parsing with a text qualifier. */
 		public void setUseTextQualifier(boolean use) {
 			useTextQualifier = use;
 		}
 		
-		/** Gets the character being used as a comment signal.
-		 * 
+		/** Gets the character being used as a comment signal. Default is pound/hash/sharp: #
 		 * @return The character being used as a comment signal. */
 		public char getComment() {
 			return comment;
 		}
 		
-		/** Sets the character to use as a comment signal.
-		 * 
+		/** Sets the character to use as a comment signal. Default is pound/hash/sharp: #
 		 * @param comment The character to use as a comment signal. */
 		public void setComment(char commentChar) {
 			comment = commentChar;
 		}
 		
-		/** Gets whether comments are being looked for while parsing or not.
-		 * 
-		 * @return Whether comments are being looked for while parsing or not. */
+		/** Gets the value of option to ignore comment data while parsing. Default is FALSE.
+		 * @return Value of option to ignore comment data while parsing. */
 		public boolean getUseComments() {
 			return useComments;
 		}
 		
-		/** Sets whether comments are being looked for while parsing or not.
-		 * 
-		 * @param useComments Whether comments are being looked for while parsing or not. */
+		/** Sets the value of option to ignore comment data while parsing. Default is FALSE.
+		 * @param useComments Set TRUE to ignore comment data while parsing. */
 		public void setUseComments(boolean use) {
 			useComments = use;
 		}
 		
-		/** Gets the current way to escape an occurance of the text qualifier inside qualified data.
-		 * 
-		 * @return The current way to escape an occurance of the text qualifier inside qualified data. */
+		/** Gets the method used to escape an occurrence of the text qualifier inside qualified data. Default is {@link com.nunn.yacsv.CsvReader.EscapeMode#DOUBLED DOUBLED}
+		 * @return The method used to escape an occurrence of the text qualifier inside qualified data. */
 		public EscapeMode getEscapeMode() {
 			return escapeMode;
 		}
 		
-		/** Sets the current way to escape an occurance of the text qualifier inside qualified data.
-		 * 
-		 * @param escapeMode The way to escape an occurance of the text qualifier inside qualified data.
-		 * @exception IllegalArgumentException When an illegal value is specified for escapeMode. */
-		public void setEscapeMode(EscapeMode mode) throws IllegalArgumentException {
+		/** Sets the method used to escape an occurrence of the text qualifier inside qualified data. Default is {@link com.nunn.yacsv.CsvReader.EscapeMode#DOUBLED DOUBLED} 
+		 * @param escapeMode The method used to escape an occurrence of the text qualifier inside qualified data. */
+		public void setEscapeMode(EscapeMode mode) {
 			escapeMode = mode;
 		}
 		
+		/** Get option to silently skip empty records. Default: TRUE
+		 * @return Value of option to silently skip empty records. */
 		public boolean getSkipEmptyRecords() {
 			return skipEmptyRecords;
 		}
 		
+		/** Set option to silently skip empty records. Default: TRUE
+		 * @param skip Set TRUE to silently skip empty records.*/
 		public void setSkipEmptyRecords(boolean skip) {
 			skipEmptyRecords = skip;
 		}
 		
-		/** Safety caution to prevent the parser from using large amounts of memory in the case where parsing settings like file encodings don't end up matching the actual format of a file. This switch can be turned off if the file format is known and tested. With the switch off, the max column lengths and max column count per record supported by the parser will greatly increase. Default is true.
-		 * 
-		 * @return The current setting of the safety switch. */
+		/** Get value of option to perform safe parsing. Default is TRUE.
+		 * This feature is intended to prevent excessive memory use in the case where parsing settings (e.g. Charset) don't match the format of a file.
+		 * Disable if the file format is known and tested. When disabled, the max column count and length are greatly increased.
+		 * @return The value of the safety switch option. */
 		public boolean getSafetySwitch() {
 			return safetyLimit.getClass().equals(SafetyLimiter.class);
 		}
 		
-		/** Safety caution to prevent the parser from using large amounts of memory in the case where parsing settings like file encodings don't end up matching the actual format of a file. This switch can be turned off if the file format is known and tested. With the switch off, the max column lengths and max column count per record supported by the parser will greatly increase. Default is true.
-		 * 
-		 * @param safetySwitch */
+		/** Set the value of option to perform safe parsing. Default is TRUE.
+		 * This feature is intended to prevent excessive memory use in the case where parsing settings (e.g. Charset) don't match the format of a file.
+		 * Disable if the file format is known and tested. When disabled, the max column count and length are greatly increased.
+		 * @param safetySwitch Set TRUE to enable the safe parsing feature. */
 		public void setSafetySwitch(boolean safetySwitch) {
 			if (safetySwitch) {
 				safetyLimit = new SafetyLimiter();
@@ -443,23 +434,20 @@ public class CsvReader implements AutoCloseable {
 	}
 	
 	/** Gets the count of columns found in this record.
-	 * 
 	 * @return The count of columns found in this record. */
 	public int getColumnCount() {
 		return columnsCount;
 	}
 	
-	/** Gets the count of headers read in by a previous call to {@link com.csvreader.CsvReader#readHeaders readHeaders()}.
-	 * 
-	 * @return The count of headers read in by a previous call to {@link com.csvreader.CsvReader#readHeaders readHeaders()}. */
+	/** Gets the count of headers setup by a previous call to {@link com.nunn.yacsv.CsvReader#readHeaders readHeaders()} or {@link com.nunn.yacsv.CsvReader#setHeaders setHeaders()}.
+	 * @return The count of headers. */
 	public int getHeaderCount() {
 		return csvHeaders.length;
 	}
 	
-	/** Returns the header values as a string array.
-	 * 
+	/** Returns a copy of the header values as a String array.
 	 * @return The header values as a String array.
-	 * @exception IOException Thrown if this object has already been closed. */
+	 * @exception IOException Thrown if this CSVReader has already been closed. */
 	public String[] getHeaders() throws IOException {
 		checkClosed();
 		
@@ -468,6 +456,8 @@ public class CsvReader implements AutoCloseable {
 		return clone;
 	}
 	
+	/** Set arbitrary CSV column headers. Useful when CSV file has no header row.
+	 * @param headers The header values. */
 	public void setHeaders(String[] headers) {
 		if (headers == null) {
 			setHeaders(new String[0], 0);
@@ -494,6 +484,9 @@ public class CsvReader implements AutoCloseable {
 		}
 	}
 	
+	/** Get all parsed column values for the current record.
+	 * @return A copy of the current record's column values.
+	 * @throws IOException Thrown if this CSVReader has already been closed. */
 	public String[] getValues() throws IOException {
 		checkClosed();
 		
@@ -504,32 +497,32 @@ public class CsvReader implements AutoCloseable {
 	}
 	
 	/** Returns the current column value for a given column index.
-	 * 
 	 * @param columnIndex The index of the column.
 	 * @return The current column value.
-	 * @exception IOException Thrown if this object has already been closed. */
+	 * @exception IOException Thrown if this CSVReader has already been closed. */
 	public String get(int columnIndex) throws IOException {
 		checkClosed();
 		return columnIndex > -1 && columnIndex < columnsCount ? values[columnIndex] : "";
 	}
 	
 	/** Returns the current column value for a given column header name.
-	 * 
 	 * @param headerName The header name of the column.
 	 * @return The current column value.
-	 * @exception IOException Thrown if this object has already been closed. */
+	 * @exception IOException Thrown if this CSVReader has already been closed. */
 	public String get(String headerName) throws IOException {
 		checkClosed();
 		return get(getIndex(headerName));
 	}
 	
 	/** Gets the index of the current record.
-	 * 
 	 * @return The index of the current record. */
 	public long getCurrentRecord() {
 		return currentRecord - 1;
 	}
 	
+	/** Gets the current record in raw state, ignoring column parsing. The captureRawRecord option must be enabled when reading a record to use this feature.
+	 * @return Raw record data.
+	 * @throws IOException Thrown if this CSVReader has already been closed. */
 	public String getRawRecord() throws IOException {
 		checkClosed();
 		
@@ -550,8 +543,7 @@ public class CsvReader implements AutoCloseable {
 		return rawRecord;
 	}
 	
-	/** Reads another record.
-	 * 
+	/** Reads another record. Must be called before attempting to get any record data.
 	 * @return Whether another record was successfully read or not.
 	 * @exception IOException Thrown if an error occurs while reading data from the source stream. */
 	public boolean readRecord() throws IOException {
@@ -913,7 +905,6 @@ public class CsvReader implements AutoCloseable {
 		}
 	}
 	
-	/** @exception IOException Thrown if an error occurs while reading data from the source stream. */
 	private void readData() throws IOException {
 		updateCurrentValue();
 		
@@ -940,7 +931,6 @@ public class CsvReader implements AutoCloseable {
 	}
 	
 	/** Read the first record of data as column headers.
-	 * 
 	 * @return Whether the header record was successfully read or not.
 	 * @exception IOException Thrown if an error occurs while reading data from the source stream. */
 	public boolean readHeaders() throws IOException {
@@ -958,21 +948,21 @@ public class CsvReader implements AutoCloseable {
 	}
 	
 	/** Returns the column header value for a given column index.
-	 * 
 	 * @param columnIndex The index of the header column being requested.
 	 * @return The value of the column header at the given column index.
-	 * @exception IOException Thrown if this object has already been closed. */
+	 * @exception IOException Thrown if this CSVReader has already been closed. */
 	public String getHeader(int columnIndex) throws IOException {
 		checkClosed();
 		return columnIndex > -1 && columnIndex < csvHeaders.length ? csvHeaders[columnIndex] : "";
 	}
 	
+	/** Returns a flag indicating if the column was text qualified in the current record.
+	 * @return TRUE when the column was parsed as text qualified data, */
 	public boolean isQualified(int columnIndex) throws IOException {
 		checkClosed();
 		return columnIndex < columnsCount && columnIndex > -1 ? isQualified[columnIndex] : false;
 	}
 	
-	/** @exception IOException Thrown if a very rare extreme exception occurs during parsing, normally resulting from improper data format. */
 	private void endColumn() throws IOException {
 		String currentValue;
 		
@@ -1065,10 +1055,9 @@ public class CsvReader implements AutoCloseable {
 	}
 	
 	/** Gets the corresponding column index for a given column header name.
-	 * 
 	 * @param headerName The header name of the column.
-	 * @return The column index for the given column header name.&nbsp;Returns -1 if not found.
-	 * @exception IOException Thrown if this object has already been closed. */
+	 * @return The column index for the given column header name. Returns -1 if not found.
+	 * @exception IOException Thrown if this CSVReader has already been closed. */
 	public int getIndex(String headerName) throws IOException {
 		checkClosed();
 		
@@ -1081,9 +1070,8 @@ public class CsvReader implements AutoCloseable {
 		return -1;
 	}
 	
-	/** Skips the next record of data by parsing each column.&nbsp;Does not increment {@link com.csvreader.CsvReader#getCurrentRecord getCurrentRecord()}.
-	 * 
-	 * @return Whether another record was successfully skipped or not.
+	/** Skips the next record by accurate parsing method. Does not increment record count returned by {@link com.nunn.yacsv.CsvReader#getCurrentRecord getCurrentRecord()}.
+	 * @return Whether a record was skipped.
 	 * @exception IOException Thrown if an error occurs while reading data from the source stream. */
 	public boolean skipRecord() throws IOException {
 		checkClosed();
@@ -1102,9 +1090,8 @@ public class CsvReader implements AutoCloseable {
 	}
 	
 	/** Skips the next line of data using the standard end of line characters and does not do any column delimited parsing.
-	 * 
 	 * @return Whether a line was successfully skipped or not.
-	 * @exception IOException Thrown if an error occurs while reading data from the source stream. */
+	 * @exception IOException Thrown if this CSVReader has already been closed, or if an error occurs while reading data from the source stream. */
 	public boolean skipLine() throws IOException {
 		checkClosed();
 		
@@ -1177,7 +1164,6 @@ public class CsvReader implements AutoCloseable {
 		}
 	}
 	
-	/** @exception IOException Thrown if this object has already been closed. */
 	private void checkClosed() throws IOException {
 		if (closed) {
 			throw new IOException("This instance of the CsvReader class has already been closed.");
