@@ -226,7 +226,7 @@ public class CsvReader implements AutoCloseable {
 		this(newReader(inputStream, charset));
 	}
 	
-	/** Constructs a {@link com.nunn.yacsv.CsvReader CsvReader} object using a {@link java.io.file.Path Path} object as the data source.
+	/** Constructs a {@link com.nunn.yacsv.CsvReader CsvReader} object using a {@link java.nio.file.Path Path} object as the data source.
 	 * @param path The path to the data source.
 	 * @param charset The {@link java.nio.charset.Charset Charset} to interpret the data. */
 	public CsvReader(Path path, Charset charset) {
@@ -303,7 +303,7 @@ public class CsvReader implements AutoCloseable {
 		}
 		
 		/** Sets option to trim leading and trailing whitespace characters from non-textqualified column data. Default is TRUE.
-		 * @param trimWhitespace Set TRUE to trim leading and trailing whitespace characters from non-textqualified column data. */
+		 * @param trim Set TRUE to trim leading and trailing whitespace characters from non-textqualified column data. */
 		public void setTrimWhitespace(boolean trim) {
 			trimWhitespace = trim;
 		}
@@ -327,13 +327,14 @@ public class CsvReader implements AutoCloseable {
 		}
 		
 		/** Sets a single character to use as the record delimiter. By default the delimiter is a pair of chars, not a single char.
-		 * @param recordDelimiter The character to use as the record delimiter. */
+		 * @param delimiterOne The character to use as the record delimiter. */
 		public void setRecordDelimiter(char delimiterOne) {
 			rowDelimiter = new RowDelimiterSingleChar(delimiterOne);
 		}
 		
 		/** Sets a pair of characters to use as the record delimiter, e.g. [\r\n] for Windows line breaks.
-		 * @param recordDelimiter The characters to use as the record delimiter. */
+		 * @param delimiterOne The first character to use as the record delimiter.
+		 * @param delimiterTwo The second character to use as the record delimiter. */
 		public void setRecordDelimiter(char delimiterOne, char delimiterTwo) {
 			rowDelimiter = new RowDelimiter(delimiterOne, delimiterTwo);
 		}
@@ -345,7 +346,7 @@ public class CsvReader implements AutoCloseable {
 		}
 		
 		/** Sets the character to use as a text qualifier in the data. Default is double quote: "
-		 * @param textQualifier The character to use as a text qualifier in the data. */
+		 * @param qualifier The character to use as a text qualifier in the data. */
 		public void setTextQualifier(char qualifier) {
 			textQualifier = qualifier;
 		}
@@ -357,7 +358,7 @@ public class CsvReader implements AutoCloseable {
 		}
 		
 		/** Sets the option to use a text qualifier while parsing. Default is TRUE.
-		 * @param useTextQualifier Set TRUE to enable parsing with a text qualifier. */
+		 * @param use Set TRUE to enable parsing with a text qualifier. */
 		public void setUseTextQualifier(boolean use) {
 			useTextQualifier = use;
 		}
@@ -369,7 +370,7 @@ public class CsvReader implements AutoCloseable {
 		}
 		
 		/** Sets the character to use as a comment signal. Default is pound/hash/sharp: #
-		 * @param comment The character to use as a comment signal. */
+		 * @param commentChar The character to use as a comment signal. */
 		public void setComment(char commentChar) {
 			comment = commentChar;
 		}
@@ -381,7 +382,7 @@ public class CsvReader implements AutoCloseable {
 		}
 		
 		/** Sets the value of option to ignore comment data while parsing. Default is FALSE.
-		 * @param useComments Set TRUE to ignore comment data while parsing. */
+		 * @param use Set TRUE to ignore comment data while parsing. */
 		public void setUseComments(boolean use) {
 			useComments = use;
 		}
@@ -393,7 +394,7 @@ public class CsvReader implements AutoCloseable {
 		}
 		
 		/** Sets the method used to escape an occurrence of the text qualifier inside qualified data. Default is {@link com.nunn.yacsv.CsvReader.EscapeMode#DOUBLED DOUBLED} 
-		 * @param escapeMode The method used to escape an occurrence of the text qualifier inside qualified data. */
+		 * @param mode The method used to escape an occurrence of the text qualifier inside qualified data. */
 		public void setEscapeMode(EscapeMode mode) {
 			escapeMode = mode;
 		}
@@ -957,7 +958,9 @@ public class CsvReader implements AutoCloseable {
 	}
 	
 	/** Returns a flag indicating if the column was text qualified in the current record.
-	 * @return TRUE when the column was parsed as text qualified data, */
+	 * @param columnIndex The index of the column to be checked.
+	 * @return TRUE when the column was parsed as text qualified data.
+	 * @exception IOException Thrown if this CSVReader has already been closed.  */
 	public boolean isQualified(int columnIndex) throws IOException {
 		checkClosed();
 		return columnIndex < columnsCount && columnIndex > -1 ? isQualified[columnIndex] : false;
@@ -1141,15 +1144,16 @@ public class CsvReader implements AutoCloseable {
 		close(true);
 	}
 	
-	/** Closes and releases all related resources. */
-	public void close(boolean closeInputStream) {
+	/** Closes and releases related resources, optionally closing underlying reader.
+	 * @param closeReader Close the underlying input reader. */
+	public void close(boolean closeReader) {
 		if ( ! closed) {
 			dataBuffer = null;
 			columnBuffer = null;
 			rawBuffer = null;
 			
 			if (reader != null) {
-				if (closeInputStream) {
+				if (closeReader) {
 					try {
 						reader.close();
 					}
