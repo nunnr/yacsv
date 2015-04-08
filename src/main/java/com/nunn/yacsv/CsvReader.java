@@ -692,7 +692,7 @@ public class CsvReader implements AutoCloseable {
 						lastLetter = currentLetter;
 						skipLine();
 					}
-					else if (trimWhitespace && (currentLetter == Letters.SPACE || currentLetter == Letters.TAB)) {
+					else if (trimWhitespace && Character.isWhitespace(currentLetter)) {
 						// do nothing, this will trim leading whitespace for both text qualified columns and non
 						startedColumn = true;
 						dataBuffer.columnStart = dataBuffer.position + 1;
@@ -975,7 +975,7 @@ public class CsvReader implements AutoCloseable {
 					int lastLetter = dataBuffer.position - 1;
 					
 					if (trimWhitespace && !startedWithQualifier) {
-						while (lastLetter >= dataBuffer.columnStart && (dataBuffer.buffer[lastLetter] == Letters.SPACE || dataBuffer.buffer[lastLetter] == Letters.TAB)) {
+						while (lastLetter >= dataBuffer.columnStart && Character.isWhitespace(dataBuffer.buffer[lastLetter])) {
 							lastLetter--;
 						}
 					}
@@ -992,7 +992,7 @@ public class CsvReader implements AutoCloseable {
 				int lastLetter = columnBuffer.position - 1;
 				
 				if (trimWhitespace && !startedWithQualifier) {
-					while (lastLetter >= 0 && (columnBuffer.buffer[lastLetter] == Letters.SPACE || columnBuffer.buffer[lastLetter] == Letters.TAB)) {
+					while (lastLetter >= 0 && Character.isWhitespace(columnBuffer.buffer[lastLetter])) {
 						lastLetter--;
 					}
 				}
