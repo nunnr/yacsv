@@ -38,49 +38,49 @@ import java.util.Map;
 /** A streaming design parser for delimited text data. */
 public class CsvReader implements AutoCloseable {
 	
-	private Reader			reader			= null;
-	private boolean			closed			= false;
+	private Reader reader = null;
+	private boolean closed = false;
 	
 	// this will be our working buffer to hold data chunks read in from the data file
-	private DataBuffer		dataBuffer		= new DataBuffer(1024);		// MAX_BUFFER_SIZE
-	private Buffer			columnBuffer	= new Buffer(50);			// INITIAL_COLUMN_BUFFER_SIZE
-	private Buffer			rawBuffer		= new Buffer(500);			// INITIAL_COLUMN_BUFFER_SIZE * INITIAL_COLUMN_COUNT
+	private DataBuffer dataBuffer = new DataBuffer(1024); // MAX_BUFFER_SIZE
+	private Buffer columnBuffer = new Buffer(50); // INITIAL_COLUMN_BUFFER_SIZE
+	private Buffer rawBuffer = new Buffer(500); // INITIAL_COLUMN_BUFFER_SIZE * INITIAL_COLUMN_COUNT
 	
 	// these are all more or less global loop variables to keep from needing to pass them all into various methods during parsing
-	private boolean					startedColumn				= false;
-	private boolean					startedWithQualifier		= false;
-	private boolean					hasMoreData					= true;
-	private int						columnsCount				= 0;
-	private long					currentRecord				= 0;
-	private String[]				values						= new String[10];			// INITIAL_COLUMN_COUNT
-	private boolean[]				isQualified					= new boolean[10];			// INITIAL_COLUMN_COUNT
-	private String[]				csvHeaders					= {};
-	private Map<String, Integer>	headerIndex					= new HashMap<String, Integer>();
-	private char					lastLetter;
-	private char					currentLetter;
-	private boolean					readingComplexEscape;
-	private int						escape;
-	private int						escapeLength;
-	private char					escapeValue;
+	private boolean startedColumn = false;
+	private boolean startedWithQualifier = false;
+	private boolean hasMoreData = true;
+	private int columnsCount = 0;
+	private long currentRecord = 0;
+	private String[] values = new String[10]; // INITIAL_COLUMN_COUNT
+	private boolean[] isQualified = new boolean[10]; // INITIAL_COLUMN_COUNT
+	private String[] csvHeaders = {};
+	private Map<String, Integer> headerIndex = new HashMap<String, Integer>();
+	private char lastLetter;
+	private char currentLetter;
+	private boolean readingComplexEscape;
+	private int escape;
+	private int escapeLength;
+	private char escapeValue;
 	
 	/** Configuration accessor - getters and setters for CsvReader behaviour options are exposed here. */
-	public final Config		config						= new Config();
+	public final Config config = new Config();
 	// these are all the values for switches that the user is may set
-	private char			textQualifier				= Letters.QUOTE;
-	private boolean			trimWhitespace				= true;
-	private boolean			useTextQualifier			= true;
-	private char			cellDelimiter				= Letters.COMMA;
-	private RowDelimiter	rowDelimiter				= new RowDelimiter(Letters.CR, Letters.LF);
-	private char			comment						= Letters.POUND;
-	private boolean			useComments					= false;
-	private EscapeMode		escapeMode					= CsvReader.EscapeMode.DOUBLED;
-	private SafetyLimiter	safetyLimit					= new SafetyLimiter();
-	private boolean			skipEmptyRecords			= true;
-	private boolean			captureRawRecord			= false;
+	private char textQualifier = Letters.QUOTE;
+	private boolean trimWhitespace = true;
+	private boolean useTextQualifier = true;
+	private char cellDelimiter = Letters.COMMA;
+	private RowDelimiter rowDelimiter = new RowDelimiter(Letters.CR, Letters.LF);
+	private char comment = Letters.POUND;
+	private boolean useComments = false;
+	private EscapeMode escapeMode = CsvReader.EscapeMode.DOUBLED;
+	private SafetyLimiter safetyLimit = new SafetyLimiter();
+	private boolean skipEmptyRecords = true;
+	private boolean captureRawRecord = false;
 	
 	private class Buffer {
-		public char[]	buffer;
-		public int		position = 0;
+		public char[] buffer;
+		public int position = 0;
 		
 		public Buffer(int size) {
 			buffer = new char[size];
@@ -95,10 +95,10 @@ public class CsvReader implements AutoCloseable {
 	
 	private class DataBuffer extends Buffer {
 		/** How much usable data has been read into the stream, which will not always be as long as Buffer.Length. */
-		public int		count			= 0;
+		public int count = 0;
 		/** The position of the cursor in the buffer when the current column was started or the last time data was moved out to the column buffer. */
-		public int		columnStart		= 0;
-		public int		lineStart		= 0;
+		public int columnStart = 0;
+		public int lineStart = 0;
 		
 		public DataBuffer(int size) {
 			super(size);
@@ -170,27 +170,27 @@ public class CsvReader implements AutoCloseable {
 	}
 	
 	protected class ComplexEscape {
-		private static final int	UNICODE	= 1;
-		private static final int	OCTAL	= 2;
-		private static final int	DECIMAL	= 3;
-		private static final int	HEX		= 4;
+		private static final int UNICODE = 1;
+		private static final int OCTAL = 2;
+		private static final int DECIMAL = 3;
+		private static final int HEX = 4;
 	}
 	
 	protected class Letters {
-		public static final char	LF				= '\n';
-		public static final char	CR				= '\r';
-		public static final char	QUOTE			= '"';
-		public static final char	COMMA			= ',';
-		public static final char	SPACE			= ' ';
-		public static final char	TAB				= '\t';
-		public static final char	POUND			= '#';
-		public static final char	BACKSLASH		= '\\';
-		public static final char	NULL			= '\0';
-		public static final char	BACKSPACE		= '\b';
-		public static final char	FORM_FEED		= '\f';
-		public static final char	ESCAPE			= '\u001B'; // ASCII/ANSI escape
-		public static final char	VERTICAL_TAB	= '\u000B';
-		public static final char	ALERT			= '\u0007';
+		public static final char LF = '\n';
+		public static final char CR = '\r';
+		public static final char QUOTE = '"';
+		public static final char COMMA = ',';
+		public static final char SPACE = ' ';
+		public static final char TAB = '\t';
+		public static final char POUND = '#';
+		public static final char BACKSLASH = '\\';
+		public static final char NULL = '\0';
+		public static final char BACKSPACE = '\b';
+		public static final char FORM_FEED = '\f';
+		public static final char ESCAPE = '\u001B'; // ASCII/ANSI escape
+		public static final char VERTICAL_TAB = '\u000B';
+		public static final char ALERT = '\u0007';
 	}
 	
 	public static enum EscapeMode {
