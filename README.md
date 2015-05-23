@@ -3,15 +3,20 @@
 A very high speed procedural processing library for CSV data.
 
 Programmed by Rob Nunn.
+
 (C) 2015
 
 ## Parent project: Java CSV ##
 
 Forked from **Java CSV**, with thanks:
- Java CSV is a stream based library for reading and writing CSV and other delimited data.
- By Bruce Dunwiddie bruce@csvreader.com
- http://www.csvreader.com/java_csv.php
- http://sourceforge.net/p/javacsv
+
+Java CSV is a stream based library for reading and writing CSV and other delimited data.
+
+By Bruce Dunwiddie bruce@csvreader.com
+
+http://www.csvreader.com/java_csv.php
+
+http://sourceforge.net/p/javacsv
 
 ## Licence: GNU Lesser General Public 2.1 ##
 This library is free software; you can redistribute it and/or
