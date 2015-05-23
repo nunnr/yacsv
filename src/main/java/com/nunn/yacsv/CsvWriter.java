@@ -1,4 +1,6 @@
-/*
+/* Yet Another CSV Writer. Programmed by Rob Nunn.
+ * Forked from Java CSV: http://www.csvreader.com/java_csv.php http://sourceforge.net/p/javacsv
+ * 
  * Java CSV is a stream based library for reading and writing
  * CSV and other delimited data.
  *   

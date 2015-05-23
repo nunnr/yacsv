@@ -2,7 +2,9 @@
 
 A very high speed procedural processing library for CSV data.
 
-Programmed by Rob Nunn.
+Programmed in Java by Rob Nunn.
+
+https://bitbucket.org/nunn/yacsv
 
 (C) 2015
 

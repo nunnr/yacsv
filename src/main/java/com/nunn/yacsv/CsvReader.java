@@ -33,18 +33,20 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.NumberFormat;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 /** A streaming design parser for delimited text data. */
-public class CsvReader implements AutoCloseable {
+public class CsvReader implements AutoCloseable, Iterator<String[]> {
 	
 	private Reader reader = null;
 	private boolean closed = false;
 	
 	// this will be our working buffer to hold data chunks read in from the data file
-	private DataBuffer dataBuffer = new DataBuffer(1024); // MAX_BUFFER_SIZE
-	private Buffer columnBuffer = new Buffer(50); // INITIAL_COLUMN_BUFFER_SIZE
-	private Buffer rawBuffer = new Buffer(500); // INITIAL_COLUMN_BUFFER_SIZE * INITIAL_COLUMN_COUNT
+	private DataBuffer dataBuffer = new DataBuffer(8192); // Reader.read(...) buffer
+	private Buffer columnBuffer = new Buffer(32); // INITIAL_COLUMN_BUFFER_SIZE
+	private Buffer rawBuffer = new Buffer(512); // INITIAL_COLUMN_BUFFER_SIZE * INITIAL_COLUMN_COUNT
 	
 	// these are all more or less global loop variables to keep from needing to pass them all into various methods during parsing
 	private boolean startedColumn = false;
@@ -52,8 +54,8 @@ public class CsvReader implements AutoCloseable {
 	private boolean hasMoreData = true;
 	private int columnsCount = 0;
 	private long currentRecord = 0;
-	private String[] values = new String[10]; // INITIAL_COLUMN_COUNT
-	private boolean[] isQualified = new boolean[10]; // INITIAL_COLUMN_COUNT
+	private String[] values = new String[16]; // INITIAL_COLUMN_COUNT
+	private boolean[] isQualified = new boolean[16]; // INITIAL_COLUMN_COUNT
 	private String[] csvHeaders = {};
 	private Map<String, Integer> headerIndex = new HashMap<String, Integer>();
 	private char lastLetter;
@@ -78,6 +80,9 @@ public class CsvReader implements AutoCloseable {
 	private boolean skipEmptyRecords = true;
 	private boolean captureRawRecord = false;
 	
+	// implementation for Iterator<String[]>
+	private Boolean iteratorReadStatus = null;
+	
 	private class Buffer {
 		public char[] buffer;
 		public int position = 0;
@@ -86,10 +91,30 @@ public class CsvReader implements AutoCloseable {
 			buffer = new char[size];
 		}
 		
-		public void expand(int newLength) {
-			char[] temp = new char[newLength];
+		public void expand(int addLength) {
+			char[] temp = new char[buffer.length + addLength];
 			System.arraycopy(buffer, 0, temp, 0, position);
 			buffer = temp;
+		}
+		
+		public void append(Buffer source, int sourceStart, int sourceEnd) {
+			int delta = sourceEnd - sourceStart;
+			
+			if (buffer.length - position < delta) {
+				expand(Math.max(delta, buffer.length));
+			}
+			
+			System.arraycopy(source.buffer, sourceStart, buffer, position, delta);
+			position += delta;
+		}
+		
+		private void append(char letter) {
+			if (position == buffer.length) {
+				expand(buffer.length);
+			}
+			
+			buffer[position] = letter;
+			position++;
 		}
 	}
 	
@@ -819,7 +844,7 @@ public class CsvReader implements AutoCloseable {
 		}
 		
 		if (!readingComplexEscape) {
-			appendLetter(escapeValue);
+			appendEscapedChar(escapeValue);
 		}
 		else {
 			dataBuffer.columnStart = dataBuffer.position + 1;
@@ -829,28 +854,28 @@ public class CsvReader implements AutoCloseable {
 	private void handleEscapee() {
 		switch (currentLetter) {
 			case 'n':
-				appendLetter(Letters.LF);
+				appendEscapedChar(Letters.LF);
 				break;
 			case 'r':
-				appendLetter(Letters.CR);
+				appendEscapedChar(Letters.CR);
 				break;
 			case 't':
-				appendLetter(Letters.TAB);
+				appendEscapedChar(Letters.TAB);
 				break;
 			case 'b':
-				appendLetter(Letters.BACKSPACE);
+				appendEscapedChar(Letters.BACKSPACE);
 				break;
 			case 'f':
-				appendLetter(Letters.FORM_FEED);
+				appendEscapedChar(Letters.FORM_FEED);
 				break;
 			case 'e':
-				appendLetter(Letters.ESCAPE);
+				appendEscapedChar(Letters.ESCAPE);
 				break;
 			case 'v':
-				appendLetter(Letters.VERTICAL_TAB);
+				appendEscapedChar(Letters.VERTICAL_TAB);
 				break;
 			case 'a':
-				appendLetter(Letters.ALERT);
+				appendEscapedChar(Letters.ALERT);
 				break;
 			case '0':
 			case '1':
@@ -867,39 +892,36 @@ public class CsvReader implements AutoCloseable {
 				dataBuffer.columnStart = dataBuffer.position + 1;
 				break;
 			case 'u':
-			case 'x':
-			case 'o':
-			case 'd':
 			case 'U':
-			case 'X':
-			case 'O':
-			case 'D':
-				switch (currentLetter) {
-					case 'u':
-					case 'U':
-						escape = ComplexEscape.UNICODE;
-						break;
-					case 'x':
-					case 'X':
-						escape = ComplexEscape.HEX;
-						break;
-					case 'o':
-					case 'O':
-						escape = ComplexEscape.OCTAL;
-						break;
-					case 'd':
-					case 'D':
-						escape = ComplexEscape.DECIMAL;
-						break;
-					default:
-						break;
-				}
-				
+				escape = ComplexEscape.UNICODE;
 				readingComplexEscape = true;
 				escapeLength = 0;
 				escapeValue = (char) 0;
 				dataBuffer.columnStart = dataBuffer.position + 1;
-				
+				break;
+			case 'x':
+			case 'X':
+				escape = ComplexEscape.HEX;
+				readingComplexEscape = true;
+				escapeLength = 0;
+				escapeValue = (char) 0;
+				dataBuffer.columnStart = dataBuffer.position + 1;
+				break;
+			case 'o':
+			case 'O':
+				escape = ComplexEscape.OCTAL;
+				readingComplexEscape = true;
+				escapeLength = 0;
+				escapeValue = (char) 0;
+				dataBuffer.columnStart = dataBuffer.position + 1;
+				break;
+			case 'd':
+			case 'D':
+				escape = ComplexEscape.DECIMAL;
+				readingComplexEscape = true;
+				escapeLength = 0;
+				escapeValue = (char) 0;
+				dataBuffer.columnStart = dataBuffer.position + 1;
 				break;
 			default:
 				break;
@@ -910,7 +932,7 @@ public class CsvReader implements AutoCloseable {
 		updateCurrentValue();
 		
 		if (captureRawRecord && dataBuffer.count > 0) {
-			bufferToBuffer(dataBuffer, dataBuffer.lineStart, dataBuffer.count, rawBuffer);
+			rawBuffer.append(dataBuffer, dataBuffer.lineStart, dataBuffer.count);
 		}
 		
 		try {
@@ -921,7 +943,7 @@ public class CsvReader implements AutoCloseable {
 			throw ex;
 		}
 		
-		// if no more data could be found, set flag stating that the end of the data was found
+		// Reader.read(...) count of -1 indicates end of stream, set our flag to match.
 		if (dataBuffer.count == -1) {
 			hasMoreData = false;
 		}
@@ -1027,34 +1049,17 @@ public class CsvReader implements AutoCloseable {
 		columnsCount++;
 	}
 	
-	private void appendLetter(char letter) {
-		if (columnBuffer.position == columnBuffer.buffer.length) {
-			columnBuffer.expand(columnBuffer.buffer.length * 2);
-		}
-		
-		columnBuffer.buffer[columnBuffer.position] = letter;
-		columnBuffer.position++;
+	private void appendEscapedChar(char letter) {
+		columnBuffer.append(letter);
 		dataBuffer.columnStart = dataBuffer.position + 1;
 	}
 	
 	private void updateCurrentValue() {
 		if (startedColumn && dataBuffer.columnStart < dataBuffer.position) {
-			bufferToBuffer(dataBuffer, dataBuffer.columnStart, dataBuffer.position, columnBuffer);
+			columnBuffer.append(dataBuffer, dataBuffer.columnStart, dataBuffer.position);
 		}
 		
 		dataBuffer.columnStart = dataBuffer.position + 1;
-	}
-	
-	private void bufferToBuffer(Buffer source, int sourceStart, int sourceEnd, Buffer target) {
-		int nextReadLength = sourceEnd - sourceStart;
-		
-		if (target.buffer.length - target.position < nextReadLength) {
-			target.expand(target.buffer.length + Math.max(nextReadLength, target.buffer.length));
-		}
-		
-		System.arraycopy(source.buffer, sourceStart, target.buffer, target.position, nextReadLength);
-		
-		target.position += nextReadLength;
 	}
 	
 	/** Gets the corresponding column index for a given column header name.
@@ -1139,7 +1144,7 @@ public class CsvReader implements AutoCloseable {
 		return skippedLine;
 	}
 	
-	/** Closes and releases all related resources. */
+	@Override // implements AutoCloseable
 	public void close() {
 		close(true);
 	}
@@ -1158,7 +1163,7 @@ public class CsvReader implements AutoCloseable {
 						reader.close();
 					}
 					catch (Exception e) {
-						// just eat the exception
+						// eat the exception
 					}
 				}
 				reader = null;
@@ -1176,6 +1181,34 @@ public class CsvReader implements AutoCloseable {
 	
 	private char hexToDec(char hex) {
 		return (char) (hex >= 'a' ? hex - 'a' + 10 : hex >= 'A' ? hex - 'A' + 10 : hex - '0');
+	}
+
+	@Override // implements Iterator<String[]>
+	public boolean hasNext() {
+		if (iteratorReadStatus == null) {
+			try {
+				iteratorReadStatus = readRecord();
+			}
+			catch (Exception e) {
+				// eat the exception
+				iteratorReadStatus = false;
+			}
+		}
+		return iteratorReadStatus;
+	}
+
+	@Override // implements Iterator<String[]>
+	public String[] next() {
+		if (hasNext()) {
+			iteratorReadStatus = null;
+			try {
+				return getValues();
+			}
+			catch (IOException e) {
+				// eat the exception
+			}
+		}
+		throw new NoSuchElementException("No next record.");
 	}
 	
 }

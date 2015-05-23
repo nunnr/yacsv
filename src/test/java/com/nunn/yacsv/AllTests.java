@@ -1,4 +1,6 @@
-/*
+/* Yet Another CSV Tests. Programmed by Rob Nunn.
+ * Forked from Java CSV: http://www.csvreader.com/java_csv.php http://sourceforge.net/p/javacsv
+ * 
  * Java CSV is a stream based library for reading and writing
  * CSV and other delimited data.
  *   
@@ -49,6 +51,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 public class AllTests {
+	
 	public static void main(String[] args) throws Exception {
 		Class<AllTests> testClass = AllTests.class;
 		ArrayList<Method> setups = new ArrayList<Method>();
