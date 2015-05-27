@@ -81,7 +81,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 	private boolean captureRawRecord = false;
 	
 	// implementation for Iterator<String[]>
-	private Boolean iteratorReadStatus = null;
+	private boolean iteratorReadStatus = false;
 	
 	private class Buffer {
 		public char[] buffer;
@@ -1185,13 +1185,12 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 
 	@Override // implements Iterator<String[]>
 	public boolean hasNext() {
-		if (iteratorReadStatus == null) {
+		if ( ! iteratorReadStatus) {
 			try {
 				iteratorReadStatus = readRecord();
 			}
 			catch (Exception e) {
 				// eat the exception
-				iteratorReadStatus = false;
 			}
 		}
 		return iteratorReadStatus;
@@ -1200,7 +1199,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 	@Override // implements Iterator<String[]>
 	public String[] next() {
 		if (hasNext()) {
-			iteratorReadStatus = null;
+			iteratorReadStatus = false;
 			try {
 				return getValues();
 			}

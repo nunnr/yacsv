@@ -36,22 +36,25 @@ import com.nunn.yacsv.CsvReader.Letters;
 /** A stream based writer for writing delimited text data to a file or a stream. */
 public class CsvWriter implements AutoCloseable {
 	
-	private Writer			outputStream				= null;
-	private String			fileName					= null;
-	private boolean			firstColumn					= true;
-	private boolean			useCustomRecordDelimiter	= false;
-	private Charset			charset						= null;
-	private boolean			initialized					= false;
-	private boolean			closed						= false;
-	private String			systemRecordDelimiter		= "\r\n";
+	private Writer outputStream = null;
+	private String fileName = null;
+	private boolean firstColumn = true;
+	private boolean useCustomRecordDelimiter = false;
+	private Charset charset = null;
+	private boolean initialized = false;
+	private boolean closed = false;
+	private String systemRecordDelimiter = "\r\n";
 	
-	public char		TextQualifier = Letters.QUOTE;
-	public boolean	UseTextQualifier = true;
-	public char		Delimiter = Letters.COMMA;
-	public char		RecordDelimiter = Letters.NULL;
-	public char		Comment = Letters.POUND;
-	public EscapeMode		escapeMode = EscapeMode.DOUBLED;
-	public boolean	ForceQualifier = false;
+	/** Configuration accessor - getters and setters for CsvReader behaviour options are exposed here. */
+	public final Config config = new Config();
+	
+	public char TextQualifier = Letters.QUOTE;
+	public boolean UseTextQualifier = true;
+	public char Delimiter = Letters.COMMA;
+	public char RecordDelimiter = Letters.NULL;
+	public char Comment = Letters.POUND;
+	public EscapeMode escapeMode = EscapeMode.DOUBLED;
+	public boolean ForceQualifier = false;
 	
 	/** Creates a {@link com.csvreader.CsvWriter CsvWriter} object using a file as the data destination.
 	 * 
@@ -119,93 +122,99 @@ public class CsvWriter implements AutoCloseable {
 		this(new OutputStreamWriter(outputStream, charset), delimiter);
 	}
 	
-	/** Gets the character being used as the column delimiter.
-	 * 
-	 * @return The character being used as the column delimiter. */
-	public char getDelimiter() {
-		return Delimiter;
-	}
-	
-	/** Sets the character to use as the column delimiter.
-	 * 
-	 * @param delimiter
-	 *            The character to use as the column delimiter. */
-	public void setDelimiter(char delimiter) {
-		this.Delimiter = delimiter;
-	}
-	
-	public char getRecordDelimiter() {
-		return RecordDelimiter;
-	}
-	
-	/** Sets the character to use as the record delimiter.
-	 * 
-	 * @param recordDelimiter
-	 *            The character to use as the record delimiter. Default is combination of standard end of line characters for Windows, Unix, or Mac. */
-	public void setRecordDelimiter(char recordDelimiter) {
-		useCustomRecordDelimiter = true;
-		this.RecordDelimiter = recordDelimiter;
-	}
-	
-	/** Gets the character to use as a text qualifier in the data.
-	 * 
-	 * @return The character to use as a text qualifier in the data. */
-	public char getTextQualifier() {
-		return TextQualifier;
-	}
-	
-	/** Sets the character to use as a text qualifier in the data.
-	 * 
-	 * @param textQualifier
-	 *            The character to use as a text qualifier in the data. */
-	public void setTextQualifier(char textQualifier) {
-		this.TextQualifier = textQualifier;
-	}
-	
-	/** Whether text qualifiers will be used while writing data or not.
-	 * 
-	 * @return Whether text qualifiers will be used while writing data or not. */
-	public boolean getUseTextQualifier() {
-		return UseTextQualifier;
-	}
-	
-	/** Sets whether text qualifiers will be used while writing data or not.
-	 * 
-	 * @param useTextQualifier
-	 *            Whether to use a text qualifier while writing data or not. */
-	public void setUseTextQualifier(boolean useTextQualifier) {
-		this.UseTextQualifier = useTextQualifier;
-	}
-	
-	public EscapeMode getEscapeMode() {
-		return escapeMode;
-	}
-	
-	public void setEscapeMode(EscapeMode escapeMode) {
-		this.escapeMode = escapeMode;
-	}
-	
-	public void setComment(char comment) {
-		this.Comment = comment;
-	}
-	
-	public char getComment() {
-		return Comment;
-	}
-	
-	/** Whether fields will be surrounded by the text qualifier even if the qualifier is not necessarily needed to escape this field.
-	 * 
-	 * @return Whether fields will be forced to be qualified or not. */
-	public boolean getForceQualifier() {
-		return ForceQualifier;
-	}
-	
-	/** Use this to force all fields to be surrounded by the text qualifier even if the qualifier is not necessarily needed to escape this field. Default is false.
-	 * 
-	 * @param forceQualifier
-	 *            Whether to force the fields to be qualified or not. */
-	public void setForceQualifier(boolean forceQualifier) {
-		this.ForceQualifier = forceQualifier;
+	public class Config {
+		
+		private Config(){}
+		
+		/** Gets the character being used as the column delimiter.
+		 * 
+		 * @return The character being used as the column delimiter. */
+		public char getDelimiter() {
+			return Delimiter;
+		}
+		
+		/** Sets the character to use as the column delimiter.
+		 * 
+		 * @param delimiter
+		 *            The character to use as the column delimiter. */
+		public void setDelimiter(char delimiter) {
+			Delimiter = delimiter;
+		}
+		
+		public char getRecordDelimiter() {
+			return RecordDelimiter;
+		}
+		
+		/** Sets the character to use as the record delimiter.
+		 * 
+		 * @param recordDelimiter
+		 *            The character to use as the record delimiter. Default is combination of standard end of line characters for Windows, Unix, or Mac. */
+		public void setRecordDelimiter(char recordDelimiter) {
+			useCustomRecordDelimiter = true;
+			RecordDelimiter = recordDelimiter;
+		}
+		
+		/** Gets the character to use as a text qualifier in the data.
+		 * 
+		 * @return The character to use as a text qualifier in the data. */
+		public char getTextQualifier() {
+			return TextQualifier;
+		}
+		
+		/** Sets the character to use as a text qualifier in the data.
+		 * 
+		 * @param textQualifier
+		 *            The character to use as a text qualifier in the data. */
+		public void setTextQualifier(char textQualifier) {
+			TextQualifier = textQualifier;
+		}
+		
+		/** Whether text qualifiers will be used while writing data or not.
+		 * 
+		 * @return Whether text qualifiers will be used while writing data or not. */
+		public boolean getUseTextQualifier() {
+			return UseTextQualifier;
+		}
+		
+		/** Sets whether text qualifiers will be used while writing data or not.
+		 * 
+		 * @param useTextQualifier
+		 *            Whether to use a text qualifier while writing data or not. */
+		public void setUseTextQualifier(boolean useTextQualifier) {
+			UseTextQualifier = useTextQualifier;
+		}
+		
+		public EscapeMode getEscapeMode() {
+			return escapeMode;
+		}
+		
+		public void setEscapeMode(EscapeMode escape) {
+			escapeMode = escape;
+		}
+		
+		public void setComment(char comment) {
+			Comment = comment;
+		}
+		
+		public char getComment() {
+			return Comment;
+		}
+		
+		/** Whether fields will be surrounded by the text qualifier even if the qualifier is not necessarily needed to escape this field.
+		 * 
+		 * @return Whether fields will be forced to be qualified or not. */
+		public boolean getForceQualifier() {
+			return ForceQualifier;
+		}
+		
+		/** Use this to force all fields to be surrounded by the text qualifier even if the qualifier is not necessarily needed to escape this field. Default is false.
+		 * 
+		 * @param forceQualifier
+		 *            Whether to force the fields to be qualified or not. */
+		public void setForceQualifier(boolean forceQualifier) {
+			ForceQualifier = forceQualifier;
+		}
+		
 	}
 	
 	/** Writes another column of data to this record.

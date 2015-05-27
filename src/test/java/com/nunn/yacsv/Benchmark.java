@@ -19,7 +19,7 @@ public class Benchmark {
 			
 			Fuzzer fuzzer = new Fuzzer();
 			
-			for (int i = 5; i < 66; i += 20) {
+			for (int i = 5; i < 206; i += 20) {
 				Path file = Files.createTempFile(temp, "data-" + i, ".csv");
 				fuzzer.writeDataToFile(file, i, 10000);
 				files.add(file);
@@ -32,6 +32,8 @@ public class Benchmark {
 		if ( ! files.isEmpty()) {
 			for (Path file : files) {
 				try (CsvReader csv = new CsvReader(file, StandardCharsets.UTF_8);) {
+					csv.config.setSafetySwitch(false);
+					
 					long total = 0;
 					
 					long start = System.nanoTime();
@@ -42,7 +44,7 @@ public class Benchmark {
 					
 					long end = System.nanoTime();
 					
-					System.out.println((end - start) / 1000000 + "msec for " + total + " lines in " + file);
+					System.out.println((end - start) / 1000000 + " msec for " + total + " lines in " + file);
 					
 					Files.delete(file);
 				}
