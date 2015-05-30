@@ -23,12 +23,14 @@
 package com.nunn.yacsv;
 
 import java.io.BufferedWriter;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 import com.nunn.yacsv.CsvReader.EscapeMode;
 import com.nunn.yacsv.CsvReader.Letters;
@@ -36,88 +38,68 @@ import com.nunn.yacsv.CsvReader.Letters;
 /** A stream based writer for writing delimited text data to a file or a stream. */
 public class CsvWriter implements AutoCloseable {
 	
-	private Writer outputStream = null;
-	private String fileName = null;
+	private Writer writer = null;
 	private boolean firstColumn = true;
 	private boolean useCustomRecordDelimiter = false;
-	private Charset charset = null;
-	private boolean initialized = false;
 	private boolean closed = false;
-	private String systemRecordDelimiter = "\r\n";
+	private static final String SYSTEM_RECORD_DELIMITER = "\r\n";
 	
 	/** Configuration accessor - getters and setters for CsvReader behaviour options are exposed here. */
 	public final Config config = new Config();
 	
-	public char TextQualifier = Letters.QUOTE;
-	public boolean UseTextQualifier = true;
-	public char Delimiter = Letters.COMMA;
-	public char RecordDelimiter = Letters.NULL;
-	public char Comment = Letters.POUND;
+	public char textQualifier = Letters.QUOTE;
+	public boolean useTextQualifier = true;
+	public char delimiter = Letters.COMMA;
+	public char recordDelimiter = Letters.NULL;
+	public char commentChar = Letters.POUND;
 	public EscapeMode escapeMode = EscapeMode.DOUBLED;
-	public boolean ForceQualifier = false;
+	public boolean forceQualifier = false;
 	
 	/** Creates a {@link com.csvreader.CsvWriter CsvWriter} object using a file as the data destination.
-	 * 
-	 * @param fileName
-	 *            The path to the file to output the data.
-	 * @param delimiter
-	 *            The character to use as the column delimiter.
-	 * @param charset
-	 *            The {@link java.nio.charset.Charset Charset} to use while writing the data. */
-	public CsvWriter(String fileName, char delimiter, Charset charset) {
+	 * @param fileName The path to the file to output the data.
+	 * @param delimiter The character to use as the column delimiter.
+	 * @param charset The {@link java.nio.charset.Charset Charset} to use while writing the data. 
+	 * @throws FileNotFoundException */
+	public CsvWriter(String fileName, char delimiter, Charset charset) throws FileNotFoundException {
 		if (fileName == null) {
 			throw new IllegalArgumentException("Parameter fileName can not be null.");
 		}
-		
 		if (charset == null) {
 			throw new IllegalArgumentException("Parameter charset can not be null.");
 		}
-		
-		this.fileName = fileName;
-		this.Delimiter = delimiter;
-		this.charset = charset;
+		this.writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(fileName), charset));
+		this.delimiter = delimiter;
 	}
 	
-	/** Creates a {@link com.csvreader.CsvWriter CsvWriter} object using a file as the data destination.&nbsp;Uses a comma as the column delimiter and ISO-8859-1 as the {@link java.nio.charset.Charset Charset}.
-	 * 
-	 * @param fileName
-	 *            The path to the file to output the data. */
-	public CsvWriter(String fileName) {
-		this(fileName, Letters.COMMA, Charset.forName("ISO-8859-1"));
+	/** Creates a {@link com.csvreader.CsvWriter CsvWriter} object using a file as the data destination.
+	 * Uses a comma as the column delimiter and UTF-8 as the {@link java.nio.charset.Charset Charset}.
+	 * @param fileName The path to the file to output the data. 
+	 * @throws FileNotFoundException */
+	public CsvWriter(String fileName) throws FileNotFoundException {
+		this(fileName, Letters.COMMA, StandardCharsets.UTF_8);
 	}
 	
-	/** Creates a {@link com.csvreader.CsvWriter CsvWriter} object using a Writer to write data to.&nbsp;Uses a comma as the column delimiter.
-	 * 
-	 * @param outputStream
-	 *            The stream to write the column delimited data to. */
+	/** Creates a {@link com.csvreader.CsvWriter CsvWriter} object using a Writer to write data to. Uses a comma as the column delimiter.
+	 * @param writer The stream to write the column delimited data to. */
 	public CsvWriter(Writer outputStream) {
 		this(outputStream, Letters.COMMA);
 	}
 	
 	/** Creates a {@link com.csvreader.CsvWriter CsvWriter} object using a Writer to write data to.
-	 * 
-	 * @param outputStream
-	 *            The stream to write the column delimited data to.
-	 * @param delimiter
-	 *            The character to use as the column delimiter. */
+	 * @param writer The stream to write the column delimited data to.
+	 * @param delimiter The character to use as the column delimiter. */
 	public CsvWriter(Writer outputStream, char delimiter) {
 		if (outputStream == null) {
-			throw new IllegalArgumentException("Parameter outputStream can not be null.");
+			throw new IllegalArgumentException("Parameter writer can not be null.");
 		}
-		
-		this.outputStream = outputStream;
-		this.Delimiter = delimiter;
-		initialized = true;
+		this.writer = outputStream;
+		this.delimiter = delimiter;
 	}
 	
 	/** Creates a {@link com.csvreader.CsvWriter CsvWriter} object using an OutputStream to write data to.
-	 * 
-	 * @param outputStream
-	 *            The stream to write the column delimited data to.
-	 * @param delimiter
-	 *            The character to use as the column delimiter.
-	 * @param charset
-	 *            The {@link java.nio.charset.Charset Charset} to use while writing the data. */
+	 * @param writer The stream to write the column delimited data to.
+	 * @param delimiter The character to use as the column delimiter.
+	 * @param charset The {@link java.nio.charset.Charset Charset} to use while writing the data. */
 	public CsvWriter(OutputStream outputStream, char delimiter, Charset charset) {
 		this(new OutputStreamWriter(outputStream, charset), delimiter);
 	}
@@ -127,131 +109,134 @@ public class CsvWriter implements AutoCloseable {
 		private Config(){}
 		
 		/** Gets the character being used as the column delimiter.
-		 * 
 		 * @return The character being used as the column delimiter. */
 		public char getDelimiter() {
-			return Delimiter;
+			return delimiter;
 		}
 		
 		/** Sets the character to use as the column delimiter.
-		 * 
-		 * @param delimiter
-		 *            The character to use as the column delimiter. */
-		public void setDelimiter(char delimiter) {
-			Delimiter = delimiter;
+		 * @param newDelimiter The character to use as the column delimiter. */
+		public void setDelimiter(char newDelimiter) {
+			delimiter = newDelimiter;
 		}
 		
 		public char getRecordDelimiter() {
-			return RecordDelimiter;
+			return recordDelimiter;
 		}
 		
 		/** Sets the character to use as the record delimiter.
-		 * 
-		 * @param recordDelimiter
-		 *            The character to use as the record delimiter. Default is combination of standard end of line characters for Windows, Unix, or Mac. */
-		public void setRecordDelimiter(char recordDelimiter) {
+		 * @param newRecordDelimiter The character to use as the record delimiter.
+		 * Default is Windows CRLF type. */
+		public void setRecordDelimiter(char newRecordDelimiter) {
 			useCustomRecordDelimiter = true;
-			RecordDelimiter = recordDelimiter;
+			recordDelimiter = newRecordDelimiter;
 		}
 		
 		/** Gets the character to use as a text qualifier in the data.
-		 * 
 		 * @return The character to use as a text qualifier in the data. */
 		public char getTextQualifier() {
-			return TextQualifier;
+			return textQualifier;
 		}
 		
 		/** Sets the character to use as a text qualifier in the data.
-		 * 
-		 * @param textQualifier
-		 *            The character to use as a text qualifier in the data. */
-		public void setTextQualifier(char textQualifier) {
-			TextQualifier = textQualifier;
+		 * @param newTextQualifier The character to use as a text qualifier in the data. */
+		public void setTextQualifier(char newTextQualifier) {
+			textQualifier = newTextQualifier;
 		}
 		
 		/** Whether text qualifiers will be used while writing data or not.
-		 * 
 		 * @return Whether text qualifiers will be used while writing data or not. */
 		public boolean getUseTextQualifier() {
-			return UseTextQualifier;
+			return useTextQualifier;
 		}
 		
 		/** Sets whether text qualifiers will be used while writing data or not.
-		 * 
-		 * @param useTextQualifier
-		 *            Whether to use a text qualifier while writing data or not. */
-		public void setUseTextQualifier(boolean useTextQualifier) {
-			UseTextQualifier = useTextQualifier;
+		 * @param newUseTextQualifier Whether to use a text qualifier while writing data or not. */
+		public void setUseTextQualifier(boolean newUseTextQualifier) {
+			useTextQualifier = newUseTextQualifier;
 		}
 		
 		public EscapeMode getEscapeMode() {
 			return escapeMode;
 		}
 		
-		public void setEscapeMode(EscapeMode escape) {
-			escapeMode = escape;
+		public void setEscapeMode(EscapeMode newEscapeMode) {
+			escapeMode = newEscapeMode;
 		}
 		
-		public void setComment(char comment) {
-			Comment = comment;
+		public void setComment(char newCommentChar) {
+			commentChar = newCommentChar;
 		}
 		
 		public char getComment() {
-			return Comment;
+			return commentChar;
 		}
 		
 		/** Whether fields will be surrounded by the text qualifier even if the qualifier is not necessarily needed to escape this field.
-		 * 
 		 * @return Whether fields will be forced to be qualified or not. */
 		public boolean getForceQualifier() {
-			return ForceQualifier;
+			return forceQualifier;
 		}
 		
 		/** Use this to force all fields to be surrounded by the text qualifier even if the qualifier is not necessarily needed to escape this field. Default is false.
-		 * 
-		 * @param forceQualifier
-		 *            Whether to force the fields to be qualified or not. */
-		public void setForceQualifier(boolean forceQualifier) {
-			ForceQualifier = forceQualifier;
+		 * @param newForceQualifier Whether to force the fields to be qualified or not. */
+		public void setForceQualifier(boolean newForceQualifier) {
+			forceQualifier = newForceQualifier;
 		}
 		
 	}
 	
-	/** Writes another column of data to this record.
-	 * 
-	 * @param content
-	 *            The data for the new column.
-	 * @param preserveSpaces
-	 *            Whether to preserve leading and trailing whitespace in this column of data.
-	 * @exception IOException
-	 *                Thrown if an error occurs while writing data to the destination stream. */
-	public void write(String content, boolean preserveSpaces) throws IOException {
+	public void writeTrimmed(String content) throws IOException {
 		checkClosed();
-		
-		checkInit();
 		
 		if (content == null) {
 			content = "";
 		}
 		
 		if (!firstColumn) {
-			outputStream.write(Delimiter);
+			writer.write(delimiter);
 		}
 		
-		boolean textQualify = ForceQualifier;
+		boolean textQualify = forceQualifier;
 		
-		if (!preserveSpaces && content.length() > 0) {
+		if ( ! content.isEmpty()) {
 			content = content.trim();
 		}
 		
-		if (!textQualify && UseTextQualifier && (content.indexOf(TextQualifier) > -1 || content.indexOf(Delimiter) > -1 || (!useCustomRecordDelimiter && (content.indexOf(Letters.LF) > -1 || content.indexOf(Letters.CR) > -1)) || (useCustomRecordDelimiter && content.indexOf(RecordDelimiter) > -1) || (firstColumn && content.length() > 0 && content.charAt(0) == Comment) ||
+		if (!textQualify && useTextQualifier && (content.indexOf(textQualifier) > -1 || content.indexOf(delimiter) > -1 || (!useCustomRecordDelimiter && (content.indexOf(Letters.LF) > -1 || content.indexOf(Letters.CR) > -1)) || (useCustomRecordDelimiter && content.indexOf(recordDelimiter) > -1) || (firstColumn && ! content.isEmpty() && content.charAt(0) == commentChar) ||
 		// check for empty first column, which if on its own line must
 		// be qualified or the line will be skipped
 				(firstColumn && content.length() == 0))) {
 			textQualify = true;
 		}
 		
-		if (UseTextQualifier && !textQualify && content.length() > 0 && preserveSpaces) {
+		doWrite(content, textQualify);
+	}
+	
+	/** Writes another column of data to this record. Does not preserve leading and trailing whitespace in this column of data.
+	 * @param content The data for the new column.
+	 * @exception IOException Thrown if an error occurs while writing data to the destination stream. */
+	public void write(String content) throws IOException {
+		checkClosed();
+		
+		if (content == null) {
+			content = "";
+		}
+		
+		if (!firstColumn) {
+			writer.write(delimiter);
+		}
+		
+		boolean textQualify = forceQualifier;
+		
+		if (!textQualify && useTextQualifier && (content.indexOf(textQualifier) > -1 || content.indexOf(delimiter) > -1 || (!useCustomRecordDelimiter && (content.indexOf(Letters.LF) > -1 || content.indexOf(Letters.CR) > -1)) || (useCustomRecordDelimiter && content.indexOf(recordDelimiter) > -1) || (firstColumn && ! content.isEmpty() && content.charAt(0) == commentChar) ||
+		// check for empty first column, which if on its own line must
+		// be qualified or the line will be skipped
+				(firstColumn && content.length() == 0))) {
+			textQualify = true;
+		}
+		
+		if (useTextQualifier && !textQualify && ! content.isEmpty()) {
 			char firstLetter = content.charAt(0);
 			
 			if (firstLetter == Letters.SPACE || firstLetter == Letters.TAB) {
@@ -267,89 +252,76 @@ public class CsvWriter implements AutoCloseable {
 			}
 		}
 		
+		doWrite(content, textQualify);
+	}
+	
+	private void doWrite(String content, boolean textQualify) throws IOException {
 		if (textQualify) {
-			outputStream.write(TextQualifier);
+			writer.write(textQualifier);
 			
 			if (escapeMode == EscapeMode.BACKSLASH) {
 				content = content.replace("" + Letters.BACKSLASH, "" + Letters.BACKSLASH + Letters.BACKSLASH);
-				content = content.replace("" + TextQualifier, "" + Letters.BACKSLASH + TextQualifier);
+				content = content.replace("" + textQualifier, "" + Letters.BACKSLASH + textQualifier);
 			}
 			else {
-				content = content.replace("" + TextQualifier, "" + TextQualifier + TextQualifier);
+				content = content.replace("" + textQualifier, "" + textQualifier + textQualifier);
 			}
 		}
 		else if (escapeMode == EscapeMode.BACKSLASH) {
 			content = content.replace("" + Letters.BACKSLASH, "" + Letters.BACKSLASH + Letters.BACKSLASH);
-			content = content.replace("" + Delimiter, "" + Letters.BACKSLASH + Delimiter);
+			content = content.replace("" + delimiter, "" + Letters.BACKSLASH + delimiter);
 			
 			if (useCustomRecordDelimiter) {
-				content = content.replace("" + RecordDelimiter, "" + Letters.BACKSLASH + RecordDelimiter);
+				content = content.replace("" + recordDelimiter, "" + Letters.BACKSLASH + recordDelimiter);
 			}
 			else {
 				content = content.replace("" + Letters.CR, "" + Letters.BACKSLASH + Letters.CR);
 				content = content.replace("" + Letters.LF, "" + Letters.BACKSLASH + Letters.LF);
 			}
 			
-			if (firstColumn && content.length() > 0 && content.charAt(0) == Comment) {
+			if (firstColumn && ! content.isEmpty() && content.charAt(0) == commentChar) {
 				if (content.length() > 1) {
-					content = "" + Letters.BACKSLASH + Comment + content.substring(1);
+					content = "" + Letters.BACKSLASH + commentChar + content.substring(1);
 				}
 				else {
-					content = "" + Letters.BACKSLASH + Comment;
+					content = "" + Letters.BACKSLASH + commentChar;
 				}
 			}
 		}
 		
-		outputStream.write(content);
+		writer.write(content);
 		
 		if (textQualify) {
-			outputStream.write(TextQualifier);
+			writer.write(textQualifier);
 		}
 		
 		firstColumn = false;
 	}
 	
-	/** Writes another column of data to this record.&nbsp;Does not preserve leading and trailing whitespace in this column of data.
-	 * 
-	 * @param content
-	 *            The data for the new column.
-	 * @exception IOException
-	 *                Thrown if an error occurs while writing data to the destination stream. */
-	public void write(String content) throws IOException {
-		write(content, false);
-	}
-	
 	public void writeComment(String commentText) throws IOException {
 		checkClosed();
 		
-		checkInit();
+		writer.write(commentChar);
 		
-		outputStream.write(Comment);
-		
-		outputStream.write(commentText);
+		writer.write(commentText);
 		
 		if (useCustomRecordDelimiter) {
-			outputStream.write(RecordDelimiter);
+			writer.write(recordDelimiter);
 		}
 		else {
-			outputStream.write(systemRecordDelimiter);
+			writer.write(SYSTEM_RECORD_DELIMITER);
 		}
 		
 		firstColumn = true;
 	}
 	
 	/** Writes a new record using the passed in array of values.
-	 * 
-	 * @param values
-	 *            Values to be written.
-	 * @param preserveSpaces
-	 *            Whether to preserver leading and trailing spaces in columns while writing out to the record or not.
-	 * @throws IOException
-	 *             Thrown if an error occurs while writing data to the destination stream. */
-	public void writeRecord(String[] values, boolean preserveSpaces) throws IOException {
+	 * @param values Values to be written.
+	 * @throws IOException Thrown if an error occurs while writing data to the destination stream. */
+	public void writeRecordTrimmed(String[] values) throws IOException {
 		if (values != null && values.length > 0) {
 			for (int i = 0; i < values.length; i++) {
-				write(values[i], preserveSpaces);
+				writeTrimmed(values[i]);
 			}
 			
 			endRecord();
@@ -357,80 +329,56 @@ public class CsvWriter implements AutoCloseable {
 	}
 	
 	/** Writes a new record using the passed in array of values.
-	 * 
-	 * @param values
-	 *            Values to be written.
-	 * @throws IOException
-	 *             Thrown if an error occurs while writing data to the destination stream. */
+	 * @param values Values to be written.
+	 * @throws IOException Thrown if an error occurs while writing data to the destination stream. */
 	public void writeRecord(String[] values) throws IOException {
-		writeRecord(values, false);
+		if (values != null && values.length > 0) {
+			for (int i = 0; i < values.length; i++) {
+				write(values[i]);
+			}
+			
+			endRecord();
+		}
 	}
 	
 	/** Ends the current record by sending the record delimiter.
-	 * 
-	 * @exception IOException
-	 *                Thrown if an error occurs while writing data to the destination stream. */
+	 * @exception IOException Thrown if an error occurs while writing data to the destination stream. */
 	public void endRecord() throws IOException {
 		checkClosed();
 		
-		checkInit();
-		
 		if (useCustomRecordDelimiter) {
-			outputStream.write(RecordDelimiter);
+			writer.write(recordDelimiter);
 		}
 		else {
-			outputStream.write(systemRecordDelimiter);
+			writer.write(SYSTEM_RECORD_DELIMITER);
 		}
 		
 		firstColumn = true;
 	}
 	
-	private void checkInit() throws IOException {
-		if (!initialized) {
-			if (fileName != null) {
-				outputStream = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(fileName), charset));
-			}
-			
-			initialized = true;
-		}
-	}
-	
 	/** Clears all buffers for the current writer and causes any buffered data to be written to the underlying device.
-	 * 
-	 * @exception IOException
-	 *                Thrown if an error occurs while writing data to the destination stream. */
+	 * @exception IOException Thrown if an error occurs while writing data to the destination stream. */
 	public void flush() throws IOException {
-		outputStream.flush();
+		writer.flush();
 	}
 	
 	/** Closes and releases all related resources. */
+	@Override // implements AutoCloseable
 	public void close() {
-		if (!closed) {
-			close(true);
-			
-			closed = true;
-		}
+		close(true);
 	}
 	
-	private void close(boolean closing) {
-		if (!closed) {
-			if (closing) {
-				charset = null;
-			}
-			
+	public void close(boolean closeWriter) {
+		if ( ! closed && closeWriter && writer != null) {
 			try {
-				if (initialized) {
-					outputStream.close();
-				}
+				writer.close();
 			}
 			catch (Exception e) {
 				// just eat the exception
 			}
-			
-			outputStream = null;
-			
-			closed = true;
 		}
+		writer = null;
+		closed = true;
 	}
 	
 	private void checkClosed() throws IOException {
@@ -438,4 +386,5 @@ public class CsvWriter implements AutoCloseable {
 			throw new IOException("This instance of the CsvWriter class has already been closed.");
 		}
 	}
+	
 }

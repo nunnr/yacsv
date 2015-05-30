@@ -713,7 +713,7 @@ public class AllTests {
 						StandardCharsets.UTF_8)), ',');
 		// writer will trim all whitespace and put this in quotes to preserve
 		// it's existence
-		writer.write(" \t \t");
+		writer.writeTrimmed(" \t \t");
 		writer.close();
 
 		CsvReader reader = new CsvReader(new InputStreamReader(
@@ -1256,16 +1256,16 @@ public class AllTests {
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
 		CsvWriter writer = new CsvWriter(stream, ',', StandardCharsets.ISO_8859_1);
-		writer.write("1,2");
-		writer.write("3");
-		writer.write("blah \"some stuff in quotes\"");
+		writer.writeTrimmed("1,2");
+		writer.writeTrimmed("3");
+		writer.writeTrimmed("blah \"some stuff in quotes\"");
 		writer.endRecord();
 		Assert.assertFalse(writer.config.getForceQualifier());
 		writer.config.setForceQualifier(true);
 		Assert.assertTrue(writer.config.getForceQualifier());
-		writer.write("1,2");
-		writer.write("3");
-		writer.write("blah \"some stuff in quotes\"");
+		writer.writeTrimmed("1,2");
+		writer.writeTrimmed("3");
+		writer.writeTrimmed("blah \"some stuff in quotes\"");
 		writer.close();
 
 		buffer = stream.toByteArray();
@@ -1286,8 +1286,8 @@ public class AllTests {
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
 		CsvWriter writer = new CsvWriter(stream, ',', StandardCharsets.ISO_8859_1);
-		writer.write("");
-		writer.write("1");
+		writer.writeTrimmed("");
+		writer.writeTrimmed("1");
 		writer.close();
 
 		buffer = stream.toByteArray();
@@ -1305,9 +1305,9 @@ public class AllTests {
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
 		CsvWriter writer = new CsvWriter(stream, '\t', StandardCharsets.ISO_8859_1);
-		writer.write("1,2");
-		writer.write("3");
-		writer.write("blah \"some stuff in quotes\"");
+		writer.writeTrimmed("1,2");
+		writer.writeTrimmed("3");
+		writer.writeTrimmed("blah \"some stuff in quotes\"");
 		writer.endRecord();
 		writer.close();
 
@@ -1330,9 +1330,9 @@ public class AllTests {
 		Assert.assertTrue(writer.config.getUseTextQualifier());
 		writer.config.setUseTextQualifier(false);
 		Assert.assertFalse(writer.config.getUseTextQualifier());
-		writer.write("1,2");
-		writer.write("3");
-		writer.write("blah \"some stuff in quotes\"");
+		writer.writeTrimmed("1,2");
+		writer.writeTrimmed("3");
+		writer.writeTrimmed("blah \"some stuff in quotes\"");
 		writer.endRecord();
 		writer.close();
 
@@ -1351,10 +1351,9 @@ public class AllTests {
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
 		CsvWriter writer = new CsvWriter(stream, '\t', StandardCharsets.ISO_8859_1);
-		writer.write("data\r\nmore data");
-		writer.write(" 3\t", false);
+		writer.writeTrimmed("data\r\nmore data");
+		writer.writeTrimmed(" 3\t");
 		writer.write(" 3\t");
-		writer.write(" 3\t", true);
 		writer.endRecord();
 		writer.close();
 
@@ -1364,7 +1363,7 @@ public class AllTests {
 		String data = StandardCharsets.ISO_8859_1.decode(
 				ByteBuffer.wrap(buffer)).toString();
 
-		Assert.assertEquals("\"data\r\nmore data\"\t3\t3\t\" 3\t\"\r\n", data);
+		Assert.assertEquals("\"data\r\nmore data\"\t3\t\" 3\t\"\r\n", data);
 	}
 
 	@Test
@@ -1400,7 +1399,7 @@ public class AllTests {
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
 		CsvWriter writer = new CsvWriter(stream, ',', StandardCharsets.ISO_8859_1);
 		writer.config.setForceQualifier(true);
-		writer.write(" data ");
+		writer.writeTrimmed(" data ");
 		writer.endRecord();
 		writer.close();
 
@@ -1422,7 +1421,7 @@ public class AllTests {
 		Assert.assertEquals('\0', writer.config.getRecordDelimiter());
 		writer.config.setRecordDelimiter(';');
 		Assert.assertEquals(';', writer.config.getRecordDelimiter());
-		writer.write("a;b");
+		writer.writeTrimmed("a;b");
 		writer.endRecord();
 		writer.close();
 
@@ -1444,14 +1443,14 @@ public class AllTests {
 		Assert.assertEquals(CsvReader.EscapeMode.DOUBLED, writer.config.getEscapeMode());
 		writer.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 		Assert.assertEquals(CsvReader.EscapeMode.BACKSLASH, writer.config.getEscapeMode());
-		writer.write("1,2");
-		writer.write("3");
-		writer.write("blah \"some stuff in quotes\"");
+		writer.writeTrimmed("1,2");
+		writer.writeTrimmed("3");
+		writer.writeTrimmed("blah \"some stuff in quotes\"");
 		writer.endRecord();
 		writer.config.setForceQualifier(true);
-		writer.write("1,2");
-		writer.write("3");
-		writer.write("blah \"some stuff in quotes\"");
+		writer.writeTrimmed("1,2");
+		writer.writeTrimmed("3");
+		writer.writeTrimmed("blah \"some stuff in quotes\"");
 		writer.close();
 
 		buffer = stream.toByteArray();
@@ -1473,9 +1472,9 @@ public class AllTests {
 		CsvWriter writer = new CsvWriter(stream, ',', StandardCharsets.ISO_8859_1);
 		writer.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 		writer.config.setUseTextQualifier(false);
-		writer.write("1,2");
-		writer.write("3");
-		writer.write("blah \"some stuff in quotes\"");
+		writer.writeTrimmed("1,2");
+		writer.writeTrimmed("3");
+		writer.writeTrimmed("blah \"some stuff in quotes\"");
 		writer.endRecord();
 		writer.close();
 
@@ -1493,10 +1492,10 @@ public class AllTests {
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
 		CsvWriter writer = new CsvWriter(stream, ',', StandardCharsets.ISO_8859_1);
-		writer.write("1");
+		writer.writeTrimmed("1");
 		writer.endRecord();
 		writer.writeComment("blah");
-		writer.write("2");
+		writer.writeTrimmed("2");
 		writer.endRecord();
 		writer.close();
 
@@ -1649,7 +1648,7 @@ public class AllTests {
 	@Test
 	public void test87() throws Exception {
 		CsvWriter writer = new CsvWriter("temp.csv");
-		writer.write("1");
+		writer.writeTrimmed("1");
 		writer.close();
 
 		CsvReader reader = new CsvReader(new FileInputStream("temp.csv"), StandardCharsets.UTF_8);
@@ -1769,7 +1768,7 @@ public class AllTests {
 
 			writer.close();
 
-			writer.write("");
+			writer.writeTrimmed("");
 		} catch (Exception ex) {
 			assertException(new IOException("This instance of the CsvWriter class has already been closed."), ex);
 		}
@@ -1787,7 +1786,7 @@ public class AllTests {
 
 		writer.config.setRecordDelimiter(';');
 
-		writer.write("1");
+		writer.writeTrimmed("1");
 		writer.endRecord();
 		writer.writeComment("blah");
 
@@ -1812,10 +1811,10 @@ public class AllTests {
 		writer.config.setTextQualifier('\'');
 		Assert.assertEquals('\'', writer.config.getTextQualifier());
 
-		writer.write("1,2");
-		writer.write("3");
-		writer.write("blah \"some stuff in quotes\"");
-		writer.write("blah \'some stuff in quotes\'");
+		writer.writeTrimmed("1,2");
+		writer.writeTrimmed("3");
+		writer.writeTrimmed("blah \"some stuff in quotes\"");
+		writer.writeTrimmed("blah \'some stuff in quotes\'");
 		writer.endRecord();
 		writer.close();
 
@@ -1837,16 +1836,16 @@ public class AllTests {
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
 		CsvWriter writer = new CsvWriter(stream, ',', StandardCharsets.ISO_8859_1);
-		writer.write("1,2");
-		writer.write("3");
+		writer.writeTrimmed("1,2");
+		writer.writeTrimmed("3");
 		writer.endRecord();
 
 		Assert.assertEquals(',', writer.config.getDelimiter());
 		writer.config.setDelimiter('\t');
 		Assert.assertEquals('\t', writer.config.getDelimiter());
 
-		writer.write("1,2");
-		writer.write("3");
+		writer.writeTrimmed("1,2");
+		writer.writeTrimmed("3");
 		writer.endRecord();
 		writer.close();
 
@@ -1865,7 +1864,7 @@ public class AllTests {
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
 		CsvWriter writer = new CsvWriter(stream, ',', StandardCharsets.ISO_8859_1);
-		writer.write("1,2");
+		writer.writeTrimmed("1,2");
 		writer.endRecord();
 
 		buffer = stream.toByteArray();
@@ -1889,11 +1888,10 @@ public class AllTests {
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
 		CsvWriter writer = new CsvWriter(stream, ',', StandardCharsets.ISO_8859_1);
-		writer.writeRecord(new String[] { " 1 ", "2" }, false);
+		writer.writeRecordTrimmed(new String[] { " 1 ", "2" });
 		writer.writeRecord(new String[] { " 1 ", "2" });
-		writer.writeRecord(new String[] { " 1 ", "2" }, true);
-		writer.writeRecord(new String[0], true);
-		writer.writeRecord(null, true);
+		writer.writeRecord(new String[0]);
+		writer.writeRecord(null);
 		writer.close();
 
 		buffer = stream.toByteArray();
@@ -1901,7 +1899,7 @@ public class AllTests {
 
 		String data = StandardCharsets.ISO_8859_1.decode(
 				ByteBuffer.wrap(buffer)).toString();
-		Assert.assertEquals("1,2\r\n1,2\r\n\" 1 \",2\r\n", data);
+		Assert.assertEquals("1,2\r\n\" 1 \",2\r\n", data);
 	}
 
 	@Test
@@ -1910,9 +1908,9 @@ public class AllTests {
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
 		CsvWriter writer = new CsvWriter(stream, ',', StandardCharsets.ISO_8859_1);
-		writer.write("1,2");
-		writer.write(null);
-		writer.write("3 ", true);
+		writer.writeTrimmed("1,2");
+		writer.writeTrimmed(null);
+		writer.write("3 ");
 		writer.endRecord();
 		writer.close();
 
@@ -1931,16 +1929,16 @@ public class AllTests {
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
 		CsvWriter writer = new CsvWriter(stream, ',', StandardCharsets.ISO_8859_1);
-		writer.write("#123");
+		writer.writeTrimmed("#123");
 		writer.endRecord();
 
 		writer.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 		writer.config.setUseTextQualifier(false);
 
-		writer.write("#123");
+		writer.writeTrimmed("#123");
 		writer.endRecord();
 
-		writer.write("#");
+		writer.writeTrimmed("#");
 		writer.endRecord();
 		writer.close();
 
@@ -1963,7 +1961,7 @@ public class AllTests {
 		writer.config.setUseTextQualifier(false);
 		writer.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 
-		writer.write("1;2");
+		writer.writeTrimmed("1;2");
 		writer.endRecord();
 		writer.close();
 
@@ -1985,12 +1983,12 @@ public class AllTests {
 		writer.config.setUseTextQualifier(false);
 		writer.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 
-		writer.write("1,\\\r\n2");
+		writer.writeTrimmed("1,\\\r\n2");
 		writer.endRecord();
 
 		writer.config.setRecordDelimiter(';');
 
-		writer.write("1,\\;2");
+		writer.writeTrimmed("1,\\;2");
 		writer.endRecord();
 		writer.close();
 
@@ -2011,7 +2009,7 @@ public class AllTests {
 		CsvWriter writer = new CsvWriter(stream, ',', StandardCharsets.ISO_8859_1);
 		writer.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 
-		writer.write("1,\\2");
+		writer.writeTrimmed("1,\\2");
 		writer.endRecord();
 		writer.close();
 
@@ -2321,7 +2319,7 @@ public class AllTests {
 		
 		for (int i = 0; i < 10000; i++)
 		{
-			writer.write("stuff");
+			writer.writeTrimmed("stuff");
 			writer.endRecord();
 		}
 		
@@ -2363,7 +2361,7 @@ public class AllTests {
 	@Test
 	public void test176() throws Exception {
 		CsvWriter writer = new CsvWriter("temp.csv");
-		writer.write("1");
+		writer.writeTrimmed("1");
 		writer.close();
 
 		Path path = Paths.get("temp.csv");
