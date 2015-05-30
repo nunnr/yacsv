@@ -61,18 +61,18 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 	private char lastLetter;
 	private char currentLetter;
 	private boolean readingComplexEscape;
-	private int escape;
+	private ComplexEscape escape;
 	private int escapeLength;
 	private char escapeValue;
 	
 	/** Configuration accessor - getters and setters for CsvReader behaviour options are exposed here. */
 	public final Config config = new Config();
-	// these are all the values for switches that the user is may set
+	// Below are the options that the user may set. Initial values match IETF RFC 4180: http://tools.ietf.org/html/rfc4180
 	private char textQualifier = Letters.QUOTE;
-	private boolean trimWhitespace = true;
+	private boolean trimWhitespace = false;
 	private boolean useTextQualifier = true;
 	private char cellDelimiter = Letters.COMMA;
-	private RowDelimiter rowDelimiter = new RowDelimiter(Letters.CR, Letters.LF);
+	private RecordDelimiter recordDelimiter = new RecordDelimiter(Letters.CR, Letters.LF);
 	private char comment = Letters.POUND;
 	private boolean useComments = false;
 	private EscapeMode escapeMode = CsvReader.EscapeMode.DOUBLED;
@@ -130,11 +130,11 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 		}
 	}
 	
-	private class RowDelimiter {
+	private class RecordDelimiter {
 		protected final char delimiterOne;
 		protected final char delimiterTwo;
 		
-		private RowDelimiter(char delimiterOne, char delimiterTwo) {
+		private RecordDelimiter(char delimiterOne, char delimiterTwo) {
 			this.delimiterOne = delimiterOne;
 			this.delimiterTwo = delimiterTwo;
 		}
@@ -144,7 +144,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 		}
 		
 		public boolean includeEmptyRecord() {
-			return startedColumn || columnsCount > 0 || (!skipEmptyRecords && (currentLetter == delimiterOne || lastLetter != delimiterOne));
+			return startedColumn || columnsCount > 0 || ( ! skipEmptyRecords && (currentLetter == delimiterOne || lastLetter != delimiterOne));
 		}
 		
 		public char[] getDelimiter() {
@@ -152,8 +152,8 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 		}
 	}
 	
-	private class RowDelimiterSingleChar extends RowDelimiter {	
-		public RowDelimiterSingleChar(char delimiterOne) {
+	private class RecordDelimiterSingleChar extends RecordDelimiter {	
+		public RecordDelimiterSingleChar(char delimiterOne) {
 			super(delimiterOne, Letters.NULL);
 		}
 		
@@ -164,7 +164,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 		
 		@Override
 		public boolean includeEmptyRecord() {
-			return startedColumn || columnsCount > 0 || !skipEmptyRecords;
+			return startedColumn || columnsCount > 0 || ! skipEmptyRecords;
 		}
 		
 		@Override
@@ -174,7 +174,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 	}
 	
 	private class SafetyLimiter {
-		private static final int MAX_COLUMNS = 100000;
+		private static final int MAX_COLUMNS = 1000;
 		
 		public void test() throws IOException {
 			if (columnsCount >= MAX_COLUMNS) {
@@ -194,11 +194,8 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 		}
 	}
 	
-	protected class ComplexEscape {
-		private static final int UNICODE = 1;
-		private static final int OCTAL = 2;
-		private static final int DECIMAL = 3;
-		private static final int HEX = 4;
+	protected enum ComplexEscape {
+		UNICODE, OCTAL, DECIMAL, HEX;
 	}
 	
 	protected class Letters {
@@ -327,7 +324,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 			return trimWhitespace;
 		}
 		
-		/** Sets option to trim leading and trailing whitespace characters from non-textqualified column data. Default is TRUE.
+		/** Sets option to trim leading and trailing whitespace characters from non-textqualified column data. Default is FALSE.
 		 * @param trim Set TRUE to trim leading and trailing whitespace characters from non-textqualified column data. */
 		public void setTrimWhitespace(boolean trim) {
 			trimWhitespace = trim;
@@ -348,20 +345,20 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 		/** Gets the record delimiter. For CSV this is typically some form of line ending. Default is [\r\n].
 		 * @return Single char or pair of chars (typically for "\r\n" usage) to represent record delimiter. */
 		public char[] getRecordDelimiter() {
-			return rowDelimiter.getDelimiter();
+			return recordDelimiter.getDelimiter();
 		}
 		
 		/** Sets a single character to use as the record delimiter. By default the delimiter is a pair of chars, not a single char.
 		 * @param delimiterOne The character to use as the record delimiter. */
 		public void setRecordDelimiter(char delimiterOne) {
-			rowDelimiter = new RowDelimiterSingleChar(delimiterOne);
+			recordDelimiter = new RecordDelimiterSingleChar(delimiterOne);
 		}
 		
 		/** Sets a pair of characters to use as the record delimiter, e.g. [\r\n] for Windows line breaks.
 		 * @param delimiterOne The first character to use as the record delimiter.
 		 * @param delimiterTwo The second character to use as the record delimiter. */
 		public void setRecordDelimiter(char delimiterOne, char delimiterTwo) {
-			rowDelimiter = new RowDelimiter(delimiterOne, delimiterTwo);
+			recordDelimiter = new RecordDelimiter(delimiterOne, delimiterTwo);
 		}
 		
 		/** Gets the character to use as a text qualifier in the data. Default is double quote: "
@@ -582,7 +579,6 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 		
 		boolean hasReadNextLine = false;
 		
-		// check to see if we've already found the end of data
 		if (hasMoreData) {
 			// loop over the data stream until the end of data is found or the end of the record is found
 			do {
@@ -592,7 +588,6 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 				else {
 					startedWithQualifier = false;
 					
-					// grab the current letter as a char
 					currentLetter = dataBuffer.buffer[dataBuffer.position];
 					
 					if (useTextQualifier && currentLetter == textQualifier) {
@@ -601,7 +596,6 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 						startedWithQualifier = true;
 						boolean lastLetterWasQualifier = false;
 						
-						// read qualified
 						startedColumn = true;
 						dataBuffer.columnStart = dataBuffer.position + 1;
 						
@@ -623,7 +617,6 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 								readData();
 							}
 							else {
-								// grab the current letter as a char
 								currentLetter = dataBuffer.buffer[dataBuffer.position];
 								
 								if (eatingTrailingJunk) {
@@ -632,7 +625,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 									if (currentLetter == cellDelimiter) {
 										endColumn();
 									}
-									else if (rowDelimiter.matches()) {
+									else if (recordDelimiter.matches()) {
 										endColumn();
 										hasReadNextLine = true;
 										currentRecord++;
@@ -669,7 +662,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 										if (currentLetter == cellDelimiter) {
 											endColumn();
 										}
-										else if (rowDelimiter.matches()) {
+										else if (recordDelimiter.matches()) {
 											endColumn();
 											hasReadNextLine = true;
 											currentRecord++;
@@ -699,9 +692,9 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 						lastLetter = currentLetter;
 						endColumn();
 					}
-					else if (rowDelimiter.matches()) {
+					else if (recordDelimiter.matches()) {
 						// this will skip blank lines
-						if (rowDelimiter.includeEmptyRecord()) {
+						if (recordDelimiter.includeEmptyRecord()) {
 							endColumn();
 							hasReadNextLine = true;
 							currentRecord++;
@@ -724,7 +717,6 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 					}
 					else {
 						// since the letter wasn't a special letter, this will be the first letter of our current column
-						
 						startedColumn = true;
 						dataBuffer.columnStart = dataBuffer.position;
 						boolean lastLetterWasBackslash = false;
@@ -736,16 +728,15 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 						boolean firstLoop = true;
 						
 						do {
-							if (!firstLoop && dataBuffer.position == dataBuffer.count) {
+							if ( ! firstLoop && dataBuffer.position == dataBuffer.count) {
 								readData();
 							}
 							else {
-								if (!firstLoop) {
-									// grab the current letter as a char
+								if ( ! firstLoop) {
 									currentLetter = dataBuffer.buffer[dataBuffer.position];
 								}
 								
-								if (!useTextQualifier && escapeMode == EscapeMode.BACKSLASH && currentLetter == Letters.BACKSLASH) {
+								if ( ! useTextQualifier && escapeMode == EscapeMode.BACKSLASH && currentLetter == Letters.BACKSLASH) {
 									if (lastLetterWasBackslash) {
 										lastLetterWasBackslash = false;
 									}
@@ -764,7 +755,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 								else if (currentLetter == cellDelimiter) {
 									endColumn();
 								}
-								else if (rowDelimiter.matches()) {
+								else if (recordDelimiter.matches()) {
 									endColumn();
 									hasReadNextLine = true;
 									currentRecord++;
@@ -803,7 +794,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 		escapeLength++;
 		
 		switch (escape) {
-			case ComplexEscape.UNICODE:
+			case UNICODE:
 				escapeValue *= (char) 16;
 				escapeValue += hexToDec(currentLetter);
 				
@@ -812,7 +803,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 				}
 				
 				break;
-			case ComplexEscape.OCTAL:
+			case OCTAL:
 				escapeValue *= (char) 8;
 				escapeValue += (char) (currentLetter - '0');
 				
@@ -821,7 +812,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 				}
 				
 				break;
-			case ComplexEscape.DECIMAL:
+			case DECIMAL:
 				escapeValue *= (char) 10;
 				escapeValue += (char) (currentLetter - '0');
 				
@@ -830,7 +821,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 				}
 				
 				break;
-			case ComplexEscape.HEX:
+			case HEX:
 				escapeValue *= (char) 16;
 				escapeValue += hexToDec(currentLetter);
 				
@@ -843,7 +834,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 				break;
 		}
 		
-		if (!readingComplexEscape) {
+		if ( ! readingComplexEscape) {
 			appendEscapedChar(escapeValue);
 		}
 		else {
@@ -885,43 +876,23 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 			case '5':
 			case '6':
 			case '7':
-				escape = ComplexEscape.OCTAL;
-				readingComplexEscape = true;
-				escapeLength = 1;
-				escapeValue = (char) (currentLetter - '0');
-				dataBuffer.columnStart = dataBuffer.position + 1;
+				complexEscape(ComplexEscape.OCTAL, 1, (char) (currentLetter - '0'));
 				break;
 			case 'u':
 			case 'U':
-				escape = ComplexEscape.UNICODE;
-				readingComplexEscape = true;
-				escapeLength = 0;
-				escapeValue = (char) 0;
-				dataBuffer.columnStart = dataBuffer.position + 1;
+				complexEscape(ComplexEscape.UNICODE, 0, (char) 0);
 				break;
 			case 'x':
 			case 'X':
-				escape = ComplexEscape.HEX;
-				readingComplexEscape = true;
-				escapeLength = 0;
-				escapeValue = (char) 0;
-				dataBuffer.columnStart = dataBuffer.position + 1;
+				complexEscape(ComplexEscape.HEX, 0, (char) 0);
 				break;
 			case 'o':
 			case 'O':
-				escape = ComplexEscape.OCTAL;
-				readingComplexEscape = true;
-				escapeLength = 0;
-				escapeValue = (char) 0;
-				dataBuffer.columnStart = dataBuffer.position + 1;
+				complexEscape(ComplexEscape.OCTAL, 0, (char) 0);
 				break;
 			case 'd':
 			case 'D':
-				escape = ComplexEscape.DECIMAL;
-				readingComplexEscape = true;
-				escapeLength = 0;
-				escapeValue = (char) 0;
-				dataBuffer.columnStart = dataBuffer.position + 1;
+				complexEscape(ComplexEscape.DECIMAL, 0, (char) 0);
 				break;
 			default:
 				break;
@@ -996,7 +967,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 				if (dataBuffer.columnStart < dataBuffer.position) {
 					int lastLetter = dataBuffer.position - 1;
 					
-					if (trimWhitespace && !startedWithQualifier) {
+					if (trimWhitespace && ! startedWithQualifier) {
 						while (lastLetter >= dataBuffer.columnStart && Character.isWhitespace(dataBuffer.buffer[lastLetter])) {
 							lastLetter--;
 						}
@@ -1013,7 +984,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 				
 				int lastLetter = columnBuffer.position - 1;
 				
-				if (trimWhitespace && !startedWithQualifier) {
+				if (trimWhitespace && ! startedWithQualifier) {
 					while (lastLetter >= 0 && Character.isWhitespace(columnBuffer.buffer[lastLetter])) {
 						lastLetter--;
 					}
@@ -1049,6 +1020,14 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 		columnsCount++;
 	}
 	
+	private void complexEscape(ComplexEscape escapeType, int escapeLen, char escapeVal) {
+		readingComplexEscape = true;
+		escape = escapeType;
+		escapeLength = escapeLen;
+		escapeValue = escapeVal;
+		dataBuffer.columnStart = dataBuffer.position + 1;
+	}
+	
 	private void appendEscapedChar(char letter) {
 		columnBuffer.append(letter);
 		dataBuffer.columnStart = dataBuffer.position + 1;
@@ -1068,14 +1047,8 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 	 * @exception IOException Thrown if this CSVReader has already been closed. */
 	public int getIndex(String headerName) throws IOException {
 		checkClosed();
-		
 		Integer indexValue = headerIndex.get(headerName);
-		
-		if (indexValue != null) {
-			return indexValue.intValue();
-		}
-		
-		return -1;
+		return indexValue != null ? indexValue.intValue() : -1;
 	}
 	
 	/** Skips the next record by accurate parsing method. Does not increment record count returned by {@link com.nunn.yacsv.CsvReader#getCurrentRecord getCurrentRecord()}.
@@ -1118,24 +1091,19 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 				else {
 					skippedLine = true;
 					
-					// grab the current letter as a char
 					currentLetter = dataBuffer.buffer[dataBuffer.position];
+					lastLetter = currentLetter; // keep track of the last letter because we need it for several key decisions
 					
 					if (currentLetter == Letters.CR || currentLetter == Letters.LF) {
 						foundEol = true;
 					}
-					
-					// keep track of the last letter because we need it for several key decisions
-					lastLetter = currentLetter;
-					
-					if (!foundEol) {
+					else {
 						dataBuffer.position++;
 					}
 				}
-			} while (hasMoreData && !foundEol);
+			} while (hasMoreData && ! foundEol);
 			
 			columnBuffer.position = 0;
-			
 			dataBuffer.lineStart = dataBuffer.position + 1;
 		}
 		
@@ -1152,25 +1120,19 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 	/** Closes and releases related resources, optionally closing underlying reader.
 	 * @param closeReader Close the underlying input reader. */
 	public void close(boolean closeReader) {
-		if ( ! closed) {
-			dataBuffer = null;
-			columnBuffer = null;
-			rawBuffer = null;
-			
-			if (reader != null) {
-				if (closeReader) {
-					try {
-						reader.close();
-					}
-					catch (Exception e) {
-						// eat the exception
-					}
-				}
-				reader = null;
+		if ( ! closed && closeReader && reader != null) {
+			try {
+				reader.close();
 			}
-			
-			closed = true;
+			catch (Exception e) {
+				// eat the exception
+			}
 		}
+		dataBuffer = null;
+		columnBuffer = null;
+		rawBuffer = null;
+		reader = null;
+		closed = true;
 	}
 	
 	private void checkClosed() throws IOException {

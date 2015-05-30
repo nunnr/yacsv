@@ -179,6 +179,9 @@ public class AllTests {
 
 		CsvReader reader = CsvReader.parse(data);
 		reader.config.setCaptureRawRecord(true);
+		Assert.assertFalse(reader.config.getTrimWhitespace());
+		reader.config.setTrimWhitespace(true);
+		Assert.assertTrue(reader.config.getTrimWhitespace());
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("bob said, \"Hey!\"", reader.get(0));
 		Assert.assertEquals("2", reader.get(1));
@@ -510,6 +513,9 @@ public class AllTests {
 
 		CsvReader reader = CsvReader.parse(data);
 		reader.config.setCaptureRawRecord(true);
+		Assert.assertFalse(reader.config.getTrimWhitespace());
+		reader.config.setTrimWhitespace(true);
+		Assert.assertTrue(reader.config.getTrimWhitespace());
 		reader.config.setTextQualifier('\'');
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("bob said, 'Hey!'", reader.get(0));
@@ -650,6 +656,9 @@ public class AllTests {
 		CsvReader reader = CsvReader.parse(data);
 		reader.config.setCaptureRawRecord(true);
 		reader.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
+		Assert.assertFalse(reader.config.getTrimWhitespace());
+		reader.config.setTrimWhitespace(true);
+		Assert.assertTrue(reader.config.getTrimWhitespace());
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("bob said, \"Hey!\"", reader.get(0));
 		Assert.assertEquals("2", reader.get(1));
@@ -763,6 +772,9 @@ public class AllTests {
 
 		CsvReader reader = CsvReader.parse(data);
 		reader.config.setCaptureRawRecord(true);
+		Assert.assertFalse(reader.config.getTrimWhitespace());
+		reader.config.setTrimWhitespace(true);
+		Assert.assertTrue(reader.config.getTrimWhitespace());
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("Chicane", reader.get(0));
 		Assert.assertEquals("Love on the Run", reader.get(1));
@@ -801,6 +813,9 @@ public class AllTests {
 
 		CsvReader reader = CsvReader.parse(data);
 		reader.config.setCaptureRawRecord(true);
+		Assert.assertFalse(reader.config.getTrimWhitespace());
+		reader.config.setTrimWhitespace(true);
+		Assert.assertTrue(reader.config.getTrimWhitespace());
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("Chicane", reader.get(0));
 		Assert.assertEquals("Love on the Run", reader.get(1));
@@ -841,6 +856,9 @@ public class AllTests {
 
 		CsvReader reader = CsvReader.parse(data);
 		reader.config.setCaptureRawRecord(true);
+		Assert.assertFalse(reader.config.getTrimWhitespace());
+		reader.config.setTrimWhitespace(true);
+		Assert.assertTrue(reader.config.getTrimWhitespace());
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals(" Chicane", reader.get(0));
 		Assert.assertEquals("Love on the Run", reader.get(1));
@@ -865,6 +883,9 @@ public class AllTests {
 
 		CsvReader reader = CsvReader.parse(data);
 		reader.config.setCaptureRawRecord(true);
+		Assert.assertFalse(reader.config.getTrimWhitespace());
+		reader.config.setTrimWhitespace(true);
+		Assert.assertTrue(reader.config.getTrimWhitespace());
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("1", reader.get(0));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
@@ -921,8 +942,6 @@ public class AllTests {
 		reader.config.setTextQualifier('\'');
 		Assert.assertEquals('\'', reader.config.getTextQualifier());
 
-		Assert.assertTrue(reader.config.getTrimWhitespace());
-		reader.config.setTrimWhitespace(false);
 		Assert.assertFalse(reader.config.getTrimWhitespace());
 
 		Assert.assertFalse(reader.config.getUseComments());
@@ -943,6 +962,9 @@ public class AllTests {
 		reader.config.setCaptureRawRecord(true);
 		reader.config.setUseTextQualifier(false);
 		reader.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
+		Assert.assertFalse(reader.config.getTrimWhitespace());
+		reader.config.setTrimWhitespace(true);
+		Assert.assertTrue(reader.config.getTrimWhitespace());
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("Chicane", reader.get(0));
 		Assert.assertEquals("Love on the Run", reader.get(1));
@@ -1028,6 +1050,9 @@ public class AllTests {
 				+ "\"Samuel Barber\", \"Adagio for Strings\", \"Classical\", \"This field contains a double quote character, \"\", but it doesn't matter as it is escaped\"";
 
 		CsvReader reader = CsvReader.parse(data);
+		Assert.assertFalse(reader.config.getTrimWhitespace());
+		reader.config.setTrimWhitespace(true);
+		Assert.assertTrue(reader.config.getTrimWhitespace());
 		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.config.getCaptureRawRecord());
 		reader.config.setCaptureRawRecord(false);
@@ -1077,6 +1102,9 @@ public class AllTests {
 		reader.config.setUseTextQualifier(false);
 		reader.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 		reader.config.setRecordDelimiter('i');
+		Assert.assertFalse(reader.config.getTrimWhitespace());
+		reader.config.setTrimWhitespace(true);
+		Assert.assertTrue(reader.config.getTrimWhitespace());
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("Chicane", reader.get(0));
 		Assert.assertEquals("Love on the Run", reader.get(1));
@@ -1540,8 +1568,9 @@ public class AllTests {
 			reader.readRecord();
 		} catch (Exception ex) {
 			assertException(
-					new IOException(
-							"Maximum column length of 100,000 exceeded in column 0 in record 0. Set the SafetySwitch property to false if you're expecting column lengths greater than 100,000 characters to avoid this error."),
+					new IOException("Maximum column length of 100,000 exceeded in column 0 in record 0."
+									+ " Set the SafetySwitch property to false if you're expecting column"
+									+ " lengths greater than 100,000 characters to avoid this error."),
 					ex);
 		}
 		reader.close();
@@ -1551,7 +1580,7 @@ public class AllTests {
 	public void test82() throws Exception {
 		StringBuilder holder = new StringBuilder(200010);
 
-		for (int i = 0; i < 100000; i++) {
+		for (int i = 0; i < 1000; i++) {
 			holder.append("a,");
 		}
 
@@ -1562,8 +1591,10 @@ public class AllTests {
 			reader.readRecord();
 		} catch (Exception ex) {
 			NumberFormat nf = NumberFormat.getIntegerInstance();
-			String max = nf.format(100000);
-			String msg = "Maximum column count of " + max + " exceeded in record 0. Set the SafetyLimit property to false if you're expecting more than " + max + " columns per record to avoid this error.";
+			String max = nf.format(1000);
+			String msg = "Maximum column count of " + max + " exceeded in record 0."
+						+ " Set the SafetyLimit property to false if you're expecting"
+						+ " more than " + max + " columns per record to avoid this error.";
 			assertException(new IOException(msg), ex);
 		}
 		reader.close();
@@ -1602,9 +1633,9 @@ public class AllTests {
 
 	@Test
 	public void test86() throws Exception {
-		StringBuilder holder = new StringBuilder(200010);
+		StringBuilder holder = new StringBuilder(2500);
 
-		for (int i = 0; i < 99999; i++) {
+		for (int i = 0; i < 999; i++) {
 			holder.append("a,");
 		}
 
@@ -1727,7 +1758,7 @@ public class AllTests {
 		try {
 			new CsvWriter((Writer) null, ',');
 		} catch (Exception ex) {
-			assertException(new IllegalArgumentException("Parameter outputStream can not be null."), ex);
+			assertException(new IllegalArgumentException("Parameter writer can not be null."), ex);
 		}
 	}
 
@@ -2070,10 +2101,19 @@ public class AllTests {
 	@Test
 	public void test137() throws Exception {
 		CsvReader reader = CsvReader.parse("1;; ;1");
+		
+		Assert.assertArrayEquals(new char[]{'\r', '\n'}, reader.config.getRecordDelimiter());
 		reader.config.setRecordDelimiter(';');
+		Assert.assertArrayEquals(new char[]{';'}, reader.config.getRecordDelimiter());
+		
 		Assert.assertTrue(reader.config.getSkipEmptyRecords());
 		reader.config.setSkipEmptyRecords(false);
 		Assert.assertFalse(reader.config.getSkipEmptyRecords());
+		
+		Assert.assertFalse(reader.config.getTrimWhitespace());
+		reader.config.setTrimWhitespace(true);
+		Assert.assertTrue(reader.config.getTrimWhitespace());
+		
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals(1, reader.getColumnCount());
 		Assert.assertEquals("1", reader.get(0));
@@ -2098,6 +2138,9 @@ public class AllTests {
 	public void test138() throws Exception {
 		CsvReader reader = CsvReader.parse("1;; ;1");
 		reader.config.setRecordDelimiter(';');
+		Assert.assertFalse(reader.config.getTrimWhitespace());
+		reader.config.setTrimWhitespace(true);
+		Assert.assertTrue(reader.config.getTrimWhitespace());
 		Assert.assertTrue(reader.config.getSkipEmptyRecords());
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals(1, reader.getColumnCount());
@@ -2125,7 +2168,9 @@ public class AllTests {
 		}
 		catch (Exception ex)
 		{
-			assertException(new IOException("Maximum column length of 100,000 exceeded in column 0 in record 0. Set the SafetySwitch property to false if you're expecting column lengths greater than 100,000 characters to avoid this error."), ex);
+			assertException(new IOException("Maximum column length of 100,000 exceeded in column 0 in record 0."
+											+ " Set the SafetySwitch property to false if you're expecting column"
+											+ " lengths greater than 100,000 characters to avoid this error."), ex);
 		}
 		reader.close();
 	}
