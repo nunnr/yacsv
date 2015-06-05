@@ -203,10 +203,14 @@ public class CsvWriter implements AutoCloseable {
 			content = content.trim();
 		}
 		
-		if (!textQualify && useTextQualifier && (content.indexOf(textQualifier) > -1 || content.indexOf(delimiter) > -1 || (!useCustomRecordDelimiter && (content.indexOf(Letters.LF) > -1 || content.indexOf(Letters.CR) > -1)) || (useCustomRecordDelimiter && content.indexOf(recordDelimiter) > -1) || (firstColumn && ! content.isEmpty() && content.charAt(0) == commentChar) ||
+		if ( ! textQualify && useTextQualifier
+				&& (content.indexOf(textQualifier) > -1
+						|| content.indexOf(delimiter) > -1
+						|| (!useCustomRecordDelimiter && (content.indexOf(Letters.LF) > -1 || content.indexOf(Letters.CR) > -1))
+						|| (useCustomRecordDelimiter && content.indexOf(recordDelimiter) > -1)
+						|| (firstColumn && (content.isEmpty() || content.charAt(0) == commentChar)))) {
 		// check for empty first column, which if on its own line must
 		// be qualified or the line will be skipped
-				(firstColumn && content.length() == 0))) {
 			textQualify = true;
 		}
 		
@@ -229,10 +233,14 @@ public class CsvWriter implements AutoCloseable {
 		
 		boolean textQualify = forceQualifier;
 		
-		if (!textQualify && useTextQualifier && (content.indexOf(textQualifier) > -1 || content.indexOf(delimiter) > -1 || (!useCustomRecordDelimiter && (content.indexOf(Letters.LF) > -1 || content.indexOf(Letters.CR) > -1)) || (useCustomRecordDelimiter && content.indexOf(recordDelimiter) > -1) || (firstColumn && ! content.isEmpty() && content.charAt(0) == commentChar) ||
+		if ( ! textQualify && useTextQualifier
+				&& (content.indexOf(textQualifier) > -1
+						|| content.indexOf(delimiter) > -1
+						|| (!useCustomRecordDelimiter && (content.indexOf(Letters.LF) > -1 || content.indexOf(Letters.CR) > -1))
+						|| (useCustomRecordDelimiter && content.indexOf(recordDelimiter) > -1)
+						|| (firstColumn && (content.isEmpty() || content.charAt(0) == commentChar)))) {
 		// check for empty first column, which if on its own line must
 		// be qualified or the line will be skipped
-				(firstColumn && content.length() == 0))) {
 			textQualify = true;
 		}
 		
