@@ -37,8 +37,8 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
-/** A streaming design parser for delimited text data. */
-public class CsvReader implements AutoCloseable, Iterator<String[]> {
+/** A stream design parser for delimited text data. */
+public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<String[]> {
 	
 	private Reader reader = null;
 	private boolean closed = false;
@@ -182,7 +182,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 				NumberFormat nf = NumberFormat.getIntegerInstance();
 				String max = nf.format(MAX_COLUMNS);
 				throw new IOException("Maximum column count of " + max + " exceeded in record " + nf.format(currentRecord)
-						+ ". Set the SafetyLimit property to false if you're expecting more than " + max + " columns per record to avoid this error.");
+						+ ". Configure config.setSafetySwitch(false) if you're expecting more than " + max + " columns per record to avoid this error.");
 			}
 		}
 	}
@@ -650,7 +650,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 									}
 								}
 								else if (escapeMode == EscapeMode.BACKSLASH && lastLetterWasEscape) {
-									handleEscapee();
+									handleEscape();
 									lastLetterWasEscape = false;
 								}
 								else if (currentLetter == escapeChar) {
@@ -737,19 +737,16 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 								}
 								
 								if ( ! useTextQualifier && escapeMode == EscapeMode.BACKSLASH && currentLetter == Letters.BACKSLASH) {
-									if (lastLetterWasBackslash) {
-										lastLetterWasBackslash = false;
-									}
-									else {
+									if ( ! lastLetterWasBackslash) {
 										updateCurrentValue();
-										lastLetterWasBackslash = true;
 									}
+									lastLetterWasBackslash = ! lastLetterWasBackslash;
 								}
 								else if (readingComplexEscape) {
 									handleComplexEscape();
 								}
 								else if (escapeMode == EscapeMode.BACKSLASH && lastLetterWasBackslash) {
-									handleEscapee();
+									handleEscape();
 									lastLetterWasBackslash = false;
 								}
 								else if (currentLetter == cellDelimiter) {
@@ -842,7 +839,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 		}
 	}
 	
-	private void handleEscapee() {
+	private void handleEscape() {
 		switch (currentLetter) {
 			case 'n':
 				appendEscapedChar(Letters.LF);
@@ -1170,6 +1167,11 @@ public class CsvReader implements AutoCloseable, Iterator<String[]> {
 			}
 		}
 		throw new NoSuchElementException("No next record.");
+	}
+
+	@Override // implements Iterable<String[]>
+	public Iterator<String[]> iterator() {
+		return this;
 	}
 	
 }

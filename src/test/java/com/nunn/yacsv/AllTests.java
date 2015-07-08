@@ -1418,9 +1418,9 @@ public class AllTests {
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
 		CsvWriter writer = new CsvWriter(stream, ',', StandardCharsets.ISO_8859_1);
-		Assert.assertEquals('\0', writer.config.getRecordDelimiter());
-		writer.config.setRecordDelimiter(';');
-		Assert.assertEquals(';', writer.config.getRecordDelimiter());
+		Assert.assertEquals("\r\n", writer.config.getRecordDelimiter());
+		writer.config.setRecordDelimiter(";");
+		Assert.assertEquals(";", writer.config.getRecordDelimiter());
 		writer.writeTrimmed("a;b");
 		writer.endRecord();
 		writer.close();
@@ -1592,7 +1592,7 @@ public class AllTests {
 			NumberFormat nf = NumberFormat.getIntegerInstance();
 			String max = nf.format(1000);
 			String msg = "Maximum column count of " + max + " exceeded in record 0."
-						+ " Set the SafetyLimit property to false if you're expecting"
+						+ " Configure config.setSafetySwitch(false) if you're expecting"
 						+ " more than " + max + " columns per record to avoid this error.";
 			assertException(new IOException(msg), ex);
 		}
@@ -1784,7 +1784,7 @@ public class AllTests {
 		writer.config.setComment('~');
 		Assert.assertEquals('~', writer.config.getComment());
 
-		writer.config.setRecordDelimiter(';');
+		writer.config.setRecordDelimiter(";");
 
 		writer.writeTrimmed("1");
 		writer.endRecord();
@@ -1957,7 +1957,7 @@ public class AllTests {
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
 		CsvWriter writer = new CsvWriter(stream, ',', StandardCharsets.ISO_8859_1);
-		writer.config.setRecordDelimiter(';');
+		writer.config.setRecordDelimiter(";");
 		writer.config.setUseTextQualifier(false);
 		writer.config.setEscapeMode(CsvReader.EscapeMode.BACKSLASH);
 
@@ -1986,7 +1986,7 @@ public class AllTests {
 		writer.writeTrimmed("1,\\\r\n2");
 		writer.endRecord();
 
-		writer.config.setRecordDelimiter(';');
+		writer.config.setRecordDelimiter(";");
 
 		writer.writeTrimmed("1,\\;2");
 		writer.endRecord();

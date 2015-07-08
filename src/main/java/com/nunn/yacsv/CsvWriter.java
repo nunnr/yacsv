@@ -40,9 +40,7 @@ public class CsvWriter implements AutoCloseable {
 	
 	private Writer writer = null;
 	private boolean firstColumn = true;
-	private boolean useCustomRecordDelimiter = false;
 	private boolean closed = false;
-	private static final String SYSTEM_RECORD_DELIMITER = "\r\n";
 	
 	/** Configuration accessor - getters and setters for CsvReader behaviour options are exposed here. */
 	public final Config config = new Config();
@@ -50,7 +48,7 @@ public class CsvWriter implements AutoCloseable {
 	public char textQualifier = Letters.QUOTE;
 	public boolean useTextQualifier = true;
 	public char delimiter = Letters.COMMA;
-	public char recordDelimiter = Letters.NULL;
+	public String recordDelimiter = "\r\n";
 	public char commentChar = Letters.POUND;
 	public EscapeMode escapeMode = EscapeMode.DOUBLED;
 	public boolean forceQualifier = false;
@@ -120,15 +118,14 @@ public class CsvWriter implements AutoCloseable {
 			delimiter = newDelimiter;
 		}
 		
-		public char getRecordDelimiter() {
+		public String getRecordDelimiter() {
 			return recordDelimiter;
 		}
 		
 		/** Sets the character to use as the record delimiter.
 		 * @param newRecordDelimiter The character to use as the record delimiter.
 		 * Default is Windows CRLF type. */
-		public void setRecordDelimiter(char newRecordDelimiter) {
-			useCustomRecordDelimiter = true;
+		public void setRecordDelimiter(String newRecordDelimiter) {
 			recordDelimiter = newRecordDelimiter;
 		}
 		
@@ -206,8 +203,7 @@ public class CsvWriter implements AutoCloseable {
 		if ( ! textQualify && useTextQualifier
 				&& (content.indexOf(textQualifier) > -1
 						|| content.indexOf(delimiter) > -1
-						|| (!useCustomRecordDelimiter && (content.indexOf(Letters.LF) > -1 || content.indexOf(Letters.CR) > -1))
-						|| (useCustomRecordDelimiter && content.indexOf(recordDelimiter) > -1)
+						|| content.indexOf(recordDelimiter) > -1
 						|| (firstColumn && (content.isEmpty() || content.charAt(0) == commentChar)))) {
 		// check for empty first column, which if on its own line must
 		// be qualified or the line will be skipped
@@ -236,8 +232,7 @@ public class CsvWriter implements AutoCloseable {
 		if ( ! textQualify && useTextQualifier
 				&& (content.indexOf(textQualifier) > -1
 						|| content.indexOf(delimiter) > -1
-						|| (!useCustomRecordDelimiter && (content.indexOf(Letters.LF) > -1 || content.indexOf(Letters.CR) > -1))
-						|| (useCustomRecordDelimiter && content.indexOf(recordDelimiter) > -1)
+						|| content.indexOf(recordDelimiter) > -1
 						|| (firstColumn && (content.isEmpty() || content.charAt(0) == commentChar)))) {
 		// check for empty first column, which if on its own line must
 		// be qualified or the line will be skipped
@@ -279,13 +274,11 @@ public class CsvWriter implements AutoCloseable {
 			content = content.replace("" + Letters.BACKSLASH, "" + Letters.BACKSLASH + Letters.BACKSLASH);
 			content = content.replace("" + delimiter, "" + Letters.BACKSLASH + delimiter);
 			
-			if (useCustomRecordDelimiter) {
-				content = content.replace("" + recordDelimiter, "" + Letters.BACKSLASH + recordDelimiter);
+			// may have to do every character in rDelim?
+			for (char rd : recordDelimiter.toCharArray()) {
+				content = content.replace("" + rd, "" + Letters.BACKSLASH + rd);
 			}
-			else {
-				content = content.replace("" + Letters.CR, "" + Letters.BACKSLASH + Letters.CR);
-				content = content.replace("" + Letters.LF, "" + Letters.BACKSLASH + Letters.LF);
-			}
+			
 			
 			if (firstColumn && ! content.isEmpty() && content.charAt(0) == commentChar) {
 				if (content.length() > 1) {
@@ -308,18 +301,9 @@ public class CsvWriter implements AutoCloseable {
 	
 	public void writeComment(String commentText) throws IOException {
 		checkClosed();
-		
 		writer.write(commentChar);
-		
 		writer.write(commentText);
-		
-		if (useCustomRecordDelimiter) {
-			writer.write(recordDelimiter);
-		}
-		else {
-			writer.write(SYSTEM_RECORD_DELIMITER);
-		}
-		
+		writer.write(recordDelimiter);
 		firstColumn = true;
 	}
 	
@@ -331,7 +315,6 @@ public class CsvWriter implements AutoCloseable {
 			for (int i = 0; i < values.length; i++) {
 				writeTrimmed(values[i]);
 			}
-			
 			endRecord();
 		}
 	}
@@ -344,7 +327,6 @@ public class CsvWriter implements AutoCloseable {
 			for (int i = 0; i < values.length; i++) {
 				write(values[i]);
 			}
-			
 			endRecord();
 		}
 	}
@@ -353,14 +335,7 @@ public class CsvWriter implements AutoCloseable {
 	 * @exception IOException Thrown if an error occurs while writing data to the destination stream. */
 	public void endRecord() throws IOException {
 		checkClosed();
-		
-		if (useCustomRecordDelimiter) {
-			writer.write(recordDelimiter);
-		}
-		else {
-			writer.write(SYSTEM_RECORD_DELIMITER);
-		}
-		
+		writer.write(recordDelimiter);
 		firstColumn = true;
 	}
 	
