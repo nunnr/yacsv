@@ -22,7 +22,6 @@
  */
 package com.nunn.yacsv;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -40,105 +39,110 @@ import java.lang.reflect.Modifier;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.Test.None;
 
 public class AllTests {
 	
+	private static File tempFile;
+	
 	public static void main(String[] args) throws Exception {
+		System.out.println("Starting all tests.");
+		
 		Class<AllTests> testClass = AllTests.class;
+		
+		ArrayList<Method> classSetups = new ArrayList<Method>();
 		ArrayList<Method> setups = new ArrayList<Method>();
+		ArrayList<Method> classTearDowns = new ArrayList<Method>();
 		ArrayList<Method> tearDowns = new ArrayList<Method>();
+		ArrayList<Method> testMethods = new ArrayList<Method>();
 
 		for (Method method : testClass.getDeclaredMethods()) {
 			int modifiers = method.getModifiers();
 
-			if (Modifier.isPublic(modifiers) && !Modifier.isStatic(modifiers)
-					&& method.getAnnotation(Ignore.class) == null) {
-				if (method.getAnnotation(Before.class) != null) {
-					setups.add(method);
+			if (Modifier.isPublic(modifiers) && ! method.isAnnotationPresent(Ignore.class)) {
+				if (Modifier.isStatic(modifiers)) {
+					if (method.isAnnotationPresent(BeforeClass.class)) {
+						classSetups.add(method);
+					}
+					if (method.isAnnotationPresent(AfterClass.class)) {
+						classTearDowns.add(method);
+					}
 				}
-
-				if (method.getAnnotation(After.class) != null) {
-					setups.add(method);
+				else {
+					if (method.isAnnotationPresent(Test.class)) {
+						testMethods.add(method);
+					}
+					else {
+						if (method.isAnnotationPresent(Before.class)) {
+							setups.add(method);
+						}
+						if (method.isAnnotationPresent(After.class)) {
+							setups.add(method);
+						}
+					}
 				}
 			}
 		}
 
-		System.out.println("Starting all tests.");
-
 		Object instance = testClass.newInstance();
+		
+		for (Method setup : classSetups) {
+			setup.invoke(instance);
+		}
 
-		for (Method method : testClass.getDeclaredMethods()) {
-			int modifiers = method.getModifiers();
+		for (Method method : testMethods) {
+			for (Method setup : setups) {
+				setup.invoke(instance);
+			}
 
-			if (Modifier.isPublic(modifiers) && !Modifier.isStatic(modifiers)
-					&& method.getAnnotation(Ignore.class) == null) {
-				Test testAnnotation = method.getAnnotation(Test.class);
+			Class<?> expectedException = method.getAnnotation(Test.class).expected();
+			if (None.class.equals(expectedException)) {
+				expectedException = null;
+			}
 
-				if (testAnnotation != null) {
-					for (Method setup : setups) {
-						setup.invoke(instance, (Object[]) null);
-					}
+			try {
+				System.out.print(method.getName());
+				
+				method.invoke(instance);
+				
+				if (expectedException == null) {
+					System.out.println("...Passed");
+				}
+				else {
+					System.out.println("...Failed: Expected exception not thrown: " + expectedException.getName());
+				}
+			}
+			catch (Exception e) {
+				if (e.getCause().getClass().equals(expectedException)) {
+					System.out.println("...Passed");
+				}
+				else {
+					System.out.println("...Failed: Unexpected exception thrown: " + e);
+				}
+			}
 
-					Class<?> expectedException = testAnnotation.expected();
+			for (Method tearDown : tearDowns) {
+				tearDown.invoke(instance);
+			}
+		}
 
-					if (None.class.equals(expectedException)) {
-						expectedException = null;
-					}
-
-					try {
-						method.invoke(instance, (Object[]) null);
-					} catch (Exception e) {
-						if (expectedException == null) {
-							System.out.println(testClass.getName() + "."
-									+ method.getName() + ": "
-									+ e.getCause().getMessage());
-							new BufferedReader(new InputStreamReader(System.in))
-									.readLine();
-						} else {
-							// is there a cleaner way of saying this?
-							if (!e.getCause().getClass().equals(
-									testAnnotation.expected())) {
-								System.out.println(testClass.getName() + "."
-										+ method.getName() + ": "
-										+ "Exception expected: "
-										+ testAnnotation.expected().getName()
-										+ ", Exception thrown: "
-										+ e.getCause().getMessage());
-								new BufferedReader(new InputStreamReader(
-										System.in)).readLine();
-							}
-
-							expectedException = null;
-						}
-					}
-
-					if (expectedException != null) {
-						System.out.println(testClass.getName() + "."
-								+ method.getName() + ": "
-								+ "Expected exception not thrown: "
-								+ testAnnotation.expected().getName());
-						new BufferedReader(new InputStreamReader(System.in))
-								.readLine();
-					}
-
-					for (Method tearDown : tearDowns) {
-						tearDown.invoke(instance, (Object[]) null);
-					}
-				} // end if (testAnnotation != null)
-			} // end if (Modifier.isPublic(modifiers)...
-		} // end for (Method method : testClass.getDeclaredMethods())
-
+		for (Method tearDown : classTearDowns) {
+			tearDown.invoke(instance);
+		}
+		
 		System.out.println("Done with all tests.");
 	}
 
@@ -154,9 +158,26 @@ public class AllTests {
 		Assert.assertEquals(expected.getClass(), actual.getClass());
 		Assert.assertEquals(expected.getMessage(), actual.getMessage());
 	}
+	
+	@BeforeClass
+	public static void runBeforeClass() {
+		try {
+			tempFile = Files.createTempFile("test", "csv").toFile();
+		}
+		catch (IOException e) {
+			throw new RuntimeException("Cannot create temporary test file.", e);
+		}
+	}
+
+	@AfterClass
+	public static void runAfterClass() {
+		if (tempFile != null) {
+			tempFile.delete();
+		}
+	}
 
 	@Test
-	public void test1() throws Exception {
+	public void test001() throws Exception {
 		CsvReader reader = CsvReader.parse("1,2");
 		reader.config.setCaptureRawRecord(true);
 		Assert.assertEquals("", reader.getRawRecord());
@@ -174,9 +195,8 @@ public class AllTests {
 	}
 
 	@Test
-	public void test2() throws Exception {
+	public void test002() throws Exception {
 		String data = "\"bob said, \"\"Hey!\"\"\",2, 3 ";
-
 		CsvReader reader = CsvReader.parse(data);
 		reader.config.setCaptureRawRecord(true);
 		Assert.assertFalse(reader.config.getTrimWhitespace());
@@ -197,7 +217,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test3() throws Exception {
+	public void test003() throws Exception {
 		String data = ",";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -215,7 +235,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test4() throws Exception {
+	public void test004() throws Exception {
 		String data = "1\r2";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -236,7 +256,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test5() throws Exception {
+	public void test005() throws Exception {
 		String data = "1\n2";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -257,7 +277,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test6() throws Exception {
+	public void test006() throws Exception {
 		String data = "1\r\n2";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -278,7 +298,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test7() throws Exception {
+	public void test007() throws Exception {
 		String data = "1\r";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -294,7 +314,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test8() throws Exception {
+	public void test008() throws Exception {
 		String data = "1\n";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -310,7 +330,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test9() throws Exception {
+	public void test009() throws Exception {
 		String data = "1\r\n";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -326,7 +346,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test10() throws Exception {
+	public void test010() throws Exception {
 		String data = "1\r2\n";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -344,7 +364,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test11() throws Exception {
+	public void test011() throws Exception {
 		String data = "\"July 4th, 2005\"";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -359,7 +379,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test12() throws Exception {
+	public void test012() throws Exception {
 		String data = " 1";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -375,7 +395,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test13() throws Exception {
+	public void test013() throws Exception {
 		String data = "";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -384,7 +404,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test14() throws Exception {
+	public void test014() throws Exception {
 		String data = "user_id,name\r\n1,Bruce";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -408,7 +428,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test15() throws Exception {
+	public void test015() throws Exception {
 		String data = "\"data \r\n here\"";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -423,7 +443,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test16() throws Exception {
+	public void test016() throws Exception {
 		String data = "\r\r\n1\r";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -447,7 +467,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test17() throws Exception {
+	public void test017() throws Exception {
 		String data = "\"double\"\"\"\"double quotes\"";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -463,7 +483,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test18() throws Exception {
+	public void test018() throws Exception {
 		String data = "1\r";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -478,7 +498,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test19() throws Exception {
+	public void test019() throws Exception {
 		String data = "1\r\n";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -493,7 +513,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test20() throws Exception {
+	public void test020() throws Exception {
 		String data = "1\n";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -508,7 +528,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test21() throws Exception {
+	public void test021() throws Exception {
 		String data = "'bob said, ''Hey!''',2, 3 ";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -532,7 +552,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test22() throws Exception {
+	public void test022() throws Exception {
 		String data = "\"data \"\" here\"";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -548,7 +568,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test23() throws Exception {
+	public void test023() throws Exception {
 		String data = generateString('a', 75) + "," + generateString('b', 75);
 
 		CsvReader reader = CsvReader.parse(data);
@@ -566,7 +586,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test24() throws Exception {
+	public void test024() throws Exception {
 		String data = "1\r\n\r\n1";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -587,7 +607,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test25() throws Exception {
+	public void test025() throws Exception {
 		String data = "1\r\n# bunch of crazy stuff here\r\n1";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -609,7 +629,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test26() throws Exception {
+	public void test026() throws Exception {
 		String data = "\"Mac \"The Knife\" Peter\",\"Boswell, Jr.\"";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -626,7 +646,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test27() throws Exception {
+	public void test027() throws Exception {
 		String data = "\"1\",Bruce\r\n\"2\n\",Toni\r\n\"3\",Brian\r\n";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -650,7 +670,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test28() throws Exception {
+	public void test028() throws Exception {
 		String data = "\"bob said, \\\"Hey!\\\"\",2, 3 ";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -673,7 +693,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test29() throws Exception {
+	public void test029() throws Exception {
 		String data = "\"double\\\"\\\"double quotes\"";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -690,7 +710,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test30() throws Exception {
+	public void test030() throws Exception {
 		String data = "\"double\\\\\\\\double backslash\"";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -707,7 +727,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test31() throws Exception {
+	public void test031() throws Exception {
 		CsvWriter writer = new CsvWriter(new PrintWriter(
 				new OutputStreamWriter(new FileOutputStream("temp.csv"),
 						StandardCharsets.UTF_8)), ',');
@@ -731,7 +751,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test32() throws Exception {
+	public void test032() throws Exception {
 		String data = "\"Mac \"The Knife\" Peter\",\"Boswell, Jr.\"";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -748,7 +768,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test33() throws Exception {
+	public void test033() throws Exception {
 		// tests for an old bug where an exception was
 		// thrown if Dispose was called without other methods
 		// being called. this should not throw an
@@ -766,7 +786,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test34() throws Exception {
+	public void test034() throws Exception {
 		String data = "\"Chicane\", \"Love on the Run\", \"Knight Rider\", \"This field contains a comma, but it doesn't matter as the field is quoted\"\r\n"
 				+ "\"Samuel Barber\", \"Adagio for Strings\", \"Classical\", \"This field contains a double quote character, \"\", but it doesn't matter as it is escaped\"";
 
@@ -808,7 +828,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test35() throws Exception {
+	public void test035() throws Exception {
 		String data = "Chicane, Love on the Run, Knight Rider, \"This field contains a comma, but it doesn't matter as the field is quoted\"";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -835,7 +855,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test36() throws Exception {
+	public void test036() throws Exception {
 		String data = "\"some \\stuff\"";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -851,7 +871,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test37() throws Exception {
+	public void test037() throws Exception {
 		String data = "  \" Chicane\"  junk here  , Love on the Run, Knight Rider, \"This field contains a comma, but it doesn't matter as the field is quoted\"";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -878,7 +898,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test38() throws Exception {
+	public void test038() throws Exception {
 		String data = "1\r\n\r\n\"\"\r\n \r\n2";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -911,7 +931,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test39() throws Exception {
+	public void test039() throws Exception {
 		CsvReader reader = CsvReader.parse("user_id,name\r\n1,Bruce");
 		Assert.assertTrue(reader.config.getSafetySwitch());
 		reader.config.setSafetySwitch(false);
@@ -955,7 +975,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test40() throws Exception {
+	public void test040() throws Exception {
 		String data = "Chicane, Love on the Run, Knight Rider, This field contains a comma\\, but it doesn't matter as the delimiter is escaped";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -984,7 +1004,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test41() throws Exception {
+	public void test041() throws Exception {
 		String data = "double\\\\\\\\double backslash";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -999,7 +1019,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test42() throws Exception {
+	public void test042() throws Exception {
 		String data = "some \\stuff";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -1014,7 +1034,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test43() throws Exception {
+	public void test043() throws Exception {
 		String data = "\"line 1\\nline 2\",\"line 1\\\nline 2\"";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -1029,7 +1049,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test44() throws Exception {
+	public void test044() throws Exception {
 		String data = "line 1\\nline 2,line 1\\\nline 2";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -1045,7 +1065,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test45() throws Exception {
+	public void test045() throws Exception {
 		String data = "\"Chicane\", \"Love on the Run\", \"Knight Rider\", \"This field contains a comma, but it doesn't matter as the field is quoted\"i"
 				+ "\"Samuel Barber\", \"Adagio for Strings\", \"Classical\", \"This field contains a double quote character, \"\", but it doesn't matter as it is escaped\"";
 
@@ -1094,7 +1114,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test46() throws Exception {
+	public void test046() throws Exception {
 		String data = "Ch\\icane, Love on the Run, Kn\\ight R\\ider, Th\\is f\\ield conta\\ins an \\i\\, but \\it doesn't matter as \\it \\is escapedi"
 				+ "Samuel Barber, Adag\\io for Str\\ings, Class\\ical, Th\\is f\\ield conta\\ins a comma \\, but \\it doesn't matter as \\it \\is escaped";
 
@@ -1130,7 +1150,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test47() throws Exception {
+	public void test047() throws Exception {
 		byte[] buffer;
 
 		String test = "M�nchen";
@@ -1152,7 +1172,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test48() throws Exception {
+	public void test048() throws Exception {
 		byte[] buffer;
 
 		String test = "M�nchen";
@@ -1174,7 +1194,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test49() throws Exception {
+	public void test049() throws Exception {
 		String data = "\"\\n\\r\\t\\b\\f\\e\\v\\a\\z\\d065\\o101\\101\\x41\\u0041\"";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -1195,7 +1215,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test50() throws Exception {
+	public void test050() throws Exception {
 		String data = "\\n\\r\\t\\b\\f\\e\\v\\a\\z\\d065\\o101\\101\\x41\\u0041";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -1216,7 +1236,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test51() throws Exception {
+	public void test051() throws Exception {
 		String data = "\"\\xfa\\u0afa\\xFA\\u0AFA\"";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -1234,7 +1254,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test52() throws Exception {
+	public void test052() throws Exception {
 		String data = "\\xfa\\u0afa\\xFA\\u0AFA";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -1251,7 +1271,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test54() throws Exception {
+	public void test054() throws Exception {
 		byte[] buffer;
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
@@ -1281,7 +1301,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test55() throws Exception {
+	public void test055() throws Exception {
 		byte[] buffer;
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
@@ -1300,7 +1320,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test56() throws Exception {
+	public void test056() throws Exception {
 		byte[] buffer;
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
@@ -1322,7 +1342,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test57() throws Exception {
+	public void test057() throws Exception {
 		byte[] buffer;
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
@@ -1346,7 +1366,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test58() throws Exception {
+	public void test058() throws Exception {
 		byte[] buffer;
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
@@ -1367,7 +1387,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test70() throws Exception {
+	public void test070() throws Exception {
 		String data = "\"1\",Bruce\r\n\"2\",Toni\r\n\"3\",Brian\r\n";
 
 		CsvReader reader = CsvReader.parse(data);
@@ -1393,7 +1413,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test71() throws Exception {
+	public void test071() throws Exception {
 		byte[] buffer;
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
@@ -1413,7 +1433,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test72() throws Exception {
+	public void test072() throws Exception {
 		byte[] buffer;
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
@@ -1435,7 +1455,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test73() throws Exception {
+	public void test073() throws Exception {
 		byte[] buffer;
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
@@ -1465,7 +1485,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test74() throws Exception {
+	public void test074() throws Exception {
 		byte[] buffer;
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
@@ -1487,7 +1507,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test75() throws Exception {
+	public void test075() throws Exception {
 		byte[] buffer;
 
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
@@ -1508,7 +1528,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test76() throws Exception {
+	public void test076() throws Exception {
 		CsvReader reader = CsvReader.parse("user_id,name\r\n1,Bruce");
 		Assert.assertEquals(0, reader.getHeaders().length);
 		Assert.assertEquals(-1, reader.getIndex("user_id"));
@@ -1528,7 +1548,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test77() {
+	public void test077() {
 		try {
 			CsvReader.parse(null);
 		} catch (Exception ex) {
@@ -1538,7 +1558,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test78() throws Exception {
+	public void test078() throws Exception {
 		CsvReader reader = CsvReader.parse("1,Bruce");
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertFalse(reader.isQualified(999));
@@ -1546,7 +1566,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test79() {
+	public void test079() {
 		CsvReader reader;
 		reader = CsvReader.parse("");
 		reader.close();
@@ -1561,7 +1581,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test81() throws Exception {
+	public void test081() throws Exception {
 		CsvReader reader = CsvReader.parse(generateString('a', 100001));
 		try {
 			reader.readRecord();
@@ -1576,7 +1596,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test82() throws Exception {
+	public void test082() throws Exception {
 		StringBuilder holder = new StringBuilder(200010);
 
 		for (int i = 0; i < 1000; i++) {
@@ -1600,7 +1620,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test83() throws Exception {
+	public void test083() throws Exception {
 		CsvReader reader = CsvReader.parse(generateString('a', 100001));
 		reader.config.setSafetySwitch(false);
 		reader.readRecord();
@@ -1608,7 +1628,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test84() throws Exception {
+	public void test084() throws Exception {
 		StringBuilder holder = new StringBuilder(200010);
 
 		for (int i = 0; i < 100000; i++) {
@@ -1624,14 +1644,14 @@ public class AllTests {
 	}
 
 	@Test
-	public void test85() throws Exception {
+	public void test085() throws Exception {
 		CsvReader reader = CsvReader.parse(generateString('a', 100000));
 		reader.readRecord();
 		reader.close();
 	}
 
 	@Test
-	public void test86() throws Exception {
+	public void test086() throws Exception {
 		StringBuilder holder = new StringBuilder(2500);
 
 		for (int i = 0; i < 999; i++) {
@@ -1646,7 +1666,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test87() throws Exception {
+	public void test087() throws Exception {
 		CsvWriter writer = new CsvWriter("temp.csv");
 		writer.writeTrimmed("1");
 		writer.close();
@@ -1663,9 +1683,9 @@ public class AllTests {
 	}
 
 	@Test
-	public void test88() throws Exception {
+	public void test088() throws Exception {
 		try {
-			new CsvReader((String) null, StandardCharsets.ISO_8859_1);
+			new CsvReader((String) null, StandardCharsets.ISO_8859_1).close();
 		} catch (Exception ex) {
 			assertException(new IllegalArgumentException(
 					"Parameter fileName can not be null."), ex);
@@ -1673,9 +1693,9 @@ public class AllTests {
 	}
 
 	@Test
-	public void test89() throws Exception {
+	public void test089() throws Exception {
 		try {
-			new CsvReader(new ByteArrayInputStream(new byte[0]), null);
+			new CsvReader(new ByteArrayInputStream(new byte[0]), null).close();
 		} catch (Exception ex) {
 			assertException(new IllegalArgumentException(
 					"Parameter charset can not be null."), ex);
@@ -1683,9 +1703,9 @@ public class AllTests {
 	}
 
 	@Test
-	public void test90() throws Exception {
+	public void test090() throws Exception {
 		try {
-			new CsvReader((Reader) null);
+			new CsvReader((Reader) null).close();
 		} catch (Exception ex) {
 			assertException(new IllegalArgumentException(
 					"Parameter inputReader can not be null."), ex);
@@ -1693,7 +1713,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test91() throws Exception {
+	public void test091() throws Exception {
 		byte[] buffer;
 
 		String test = "test";
@@ -1714,7 +1734,7 @@ public class AllTests {
 	}
 
 	@Test
-	public void test92() throws Exception {
+	public void test092() throws Exception {
 		byte[] buffer;
 
 		String test = "test";
@@ -1737,7 +1757,7 @@ public class AllTests {
 	@Test
 	public void test112() throws Exception {
 		try {
-			new CsvWriter((String) null, ',', StandardCharsets.ISO_8859_1);
+			new CsvWriter((String) null, ',', StandardCharsets.ISO_8859_1).close();
 		} catch (Exception ex) {
 			assertException(new IllegalArgumentException("Parameter fileName can not be null."), ex);
 		}
@@ -1746,7 +1766,7 @@ public class AllTests {
 	@Test
 	public void test113() throws Exception {
 		try {
-			new CsvWriter("test.csv", ',', (Charset) null);
+			new CsvWriter(tempFile.getAbsolutePath(), ',', (Charset) null).close();
 		} catch (Exception ex) {
 			assertException(new IllegalArgumentException("Parameter charset can not be null."), ex);
 		}
@@ -1755,7 +1775,7 @@ public class AllTests {
 	@Test
 	public void test114() throws Exception {
 		try {
-			new CsvWriter((Writer) null, ',');
+			new CsvWriter((Writer) null, ',').close();
 		} catch (Exception ex) {
 			assertException(new IllegalArgumentException("Parameter writer can not be null."), ex);
 		}
@@ -1764,7 +1784,7 @@ public class AllTests {
 	@Test
 	public void test115() throws Exception {
 		try {
-			CsvWriter writer = new CsvWriter("test.csv");
+			CsvWriter writer = new CsvWriter(tempFile.getAbsolutePath());
 
 			writer.close();
 
@@ -2251,7 +2271,7 @@ public class AllTests {
 	public void test149() throws Exception {
 		try
 		{
-			new CsvReader("C:\\somefilethatdoesntexist.csv", Charset.defaultCharset());
+			new CsvReader("C:\\somefilethatdoesntexist.csv", Charset.defaultCharset()).close();
 		}
 		catch (Exception ex)
 		{
