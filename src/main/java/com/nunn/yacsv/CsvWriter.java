@@ -189,16 +189,15 @@ public class CsvWriter implements AutoCloseable {
 		if (content == null) {
 			content = "";
 		}
+		else if ( ! content.isEmpty()) {
+			content = content.trim();
+		}
 		
 		if (!firstColumn) {
 			writer.write(delimiter);
 		}
 		
 		boolean textQualify = forceQualifier;
-		
-		if ( ! content.isEmpty()) {
-			content = content.trim();
-		}
 		
 		if ( ! textQualify && useTextQualifier
 				&& (content.indexOf(textQualifier) > -1

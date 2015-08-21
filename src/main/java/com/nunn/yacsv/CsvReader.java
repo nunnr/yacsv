@@ -45,8 +45,8 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 	
 	// this will be our working buffer to hold data chunks read in from the data file
 	private DataBuffer dataBuffer = new DataBuffer(8192); // Reader.read(...) buffer
-	private Buffer columnBuffer = new Buffer(32); // INITIAL_COLUMN_BUFFER_SIZE
-	private Buffer rawBuffer = new Buffer(512); // INITIAL_COLUMN_BUFFER_SIZE * INITIAL_COLUMN_COUNT
+	private Buffer columnBuffer = new Buffer(64); // INITIAL_COLUMN_BUFFER_SIZE
+	private Buffer rawBuffer = new Buffer(1024); // INITIAL_COLUMN_BUFFER_SIZE * INITIAL_COLUMN_COUNT
 	
 	// these are all more or less global loop variables to keep from needing to pass them all into various methods during parsing
 	private boolean startedColumn = false;
@@ -127,6 +127,18 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		
 		public DataBuffer(int size) {
 			super(size);
+		}
+		
+		/** @return Reader.read(...) != -1, that is TRUE indicates more data is available. */
+		public boolean read(Reader reader) throws IOException {
+			try {
+				count = reader.read(buffer, 0, buffer.length);
+			}
+			catch (IOException ex) {
+				close();
+				throw ex;
+			}
+			return count != -1;
 		}
 	}
 	
@@ -560,7 +572,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 			}
 		}
 		else {
-			rawRecord = "";
+			rawRecord = null;
 		}
 		
 		return rawRecord;
@@ -903,18 +915,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 			rawBuffer.append(dataBuffer, dataBuffer.lineStart, dataBuffer.count);
 		}
 		
-		try {
-			dataBuffer.count = reader.read(dataBuffer.buffer, 0, dataBuffer.buffer.length);
-		}
-		catch (IOException ex) {
-			close();
-			throw ex;
-		}
-		
-		// Reader.read(...) count of -1 indicates end of stream, set our flag to match.
-		if (dataBuffer.count == -1) {
-			hasMoreData = false;
-		}
+		hasMoreData = dataBuffer.read(reader);
 		
 		dataBuffer.position = 0;
 		dataBuffer.lineStart = 0;

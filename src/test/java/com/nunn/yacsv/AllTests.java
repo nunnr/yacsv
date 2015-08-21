@@ -1077,7 +1077,7 @@ public class AllTests {
 		Assert.assertTrue(reader.config.getCaptureRawRecord());
 		reader.config.setCaptureRawRecord(false);
 		Assert.assertFalse(reader.config.getCaptureRawRecord());
-		Assert.assertEquals("", reader.getRawRecord());
+		Assert.assertNull(reader.getRawRecord());
 		reader.config.setRecordDelimiter('i');
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("Chicane", reader.get(0));
@@ -1089,7 +1089,7 @@ public class AllTests {
 						reader.get(3));
 		Assert.assertEquals(0L, reader.getCurrentRecord());
 		Assert.assertEquals(4, reader.getColumnCount());
-		Assert.assertEquals("", reader.getRawRecord());
+		Assert.assertNull(reader.getRawRecord());
 		Assert.assertFalse(reader.config.getCaptureRawRecord());
 		reader.config.setCaptureRawRecord(true);
 		Assert.assertTrue(reader.config.getCaptureRawRecord());
@@ -2222,9 +2222,9 @@ public class AllTests {
 		// testing SkipLine's buffer
 		CsvReader reader = CsvReader.parse("\"" + generateString('a', 10000)
 				+ "\r\nb");
-		Assert.assertEquals("", reader.getRawRecord());
+		Assert.assertNull(reader.getRawRecord());
 		Assert.assertTrue(reader.skipLine());
-		Assert.assertEquals("", reader.getRawRecord());
+		Assert.assertNull(reader.getRawRecord());
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("b", reader.get(0));
 		Assert.assertFalse(reader.readRecord());
