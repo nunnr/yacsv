@@ -11,9 +11,12 @@ public class Fuzzer {
 	public void writeDataToFile(Path path, int columns, int rows) throws IOException {
 		try (BufferedWriter w = Files.newBufferedWriter(path);) {
 			for (int i = 0; i < rows; i++) {
-				for (int j = 0; j < columns; j++) {
+				w.write(getRandomChars());
+				for (int j = 1; j < columns; j++) {
+					w.write(',');
 					w.write(getRandomChars());
 				}
+				w.write("\r\n");
 			}
 		}
 	}
