@@ -2286,14 +2286,14 @@ public class AllTests {
 		CsvReader reader = new CsvReader(fail);
 		boolean exceptionThrown = false;
 
-		Assert.assertFalse(fail.DisposeCalled);
+		Assert.assertFalse(fail.disposeCalled);
 		try {
 			// need to test IO exception block logic while trying to read
 			reader.readRecord();
 		} catch (IOException ex) {
 			// make sure stream that caused exception
 			// has been sent a dispose call
-			Assert.assertTrue(fail.DisposeCalled);
+			Assert.assertTrue(fail.disposeCalled);
 			exceptionThrown = true;
 			Assert.assertEquals("Read failed.", ex.getMessage());
 		} finally {
@@ -2315,7 +2315,7 @@ public class AllTests {
 	}
 
 	private class FailingReader extends Reader {
-		public boolean DisposeCalled = false;
+		public boolean disposeCalled = false;
 
 		public FailingReader() {
 			super("");
@@ -2328,12 +2328,12 @@ public class AllTests {
 
 		@Override
 		public void close() {
-			DisposeCalled = true;
+			disposeCalled = true;
 		}
 	}
 	
 	@Test
-	public void Test174() throws IOException {
+	public void test174() throws IOException {
 		// verifies that data is eventually automatically flushed
 		CsvWriter writer = new CsvWriter("temp.csv");
 		
@@ -2357,7 +2357,7 @@ public class AllTests {
 	
 	/** checking close(boolean closeInputStream) */
 	@Test
-	public void Test175() throws IOException {
+	public void test175() throws IOException {
 		StringReader sr = new StringReader("somejunk");
 		
 		CsvReader reader = new CsvReader(sr);
@@ -2395,7 +2395,7 @@ public class AllTests {
 	
 	/** test header setting */
 	@Test
-	public void Test177() throws IOException {
+	public void test177() throws IOException {
 		CsvReader reader = CsvReader.parse("somejunk");
 		
 		String[] headers = {};

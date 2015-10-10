@@ -78,7 +78,7 @@ public class Benchmark {
 			for (Path file : files) {
 				double averageTime = Arrays.stream(times[fileIdx]).average().orElse(-1) / 1000000;
 				
-				System.out.printf("%5.0f msec for %10d lines in %s\n", averageTime, lines[fileIdx], file);
+				System.out.printf("%5.0f msec for %10d lines in %s%n", averageTime, lines[fileIdx], file);
 				
 				try {
 					Files.delete(file);

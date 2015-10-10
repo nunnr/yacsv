@@ -21,9 +21,9 @@ public class Fuzzer {
 		}
 	}
 	
-	private final int MAX_CHAR = 250; // NOT Character.MAX_VALUE
-	private final int MAX_LENGTH = 20;
-	private final Random RANDOM = new Random();
+	private static final int MAX_CHAR = 250; // NOT Character.MAX_VALUE
+	private static final int MAX_LENGTH = 20;
+	private static final Random RANDOM = new Random();
 	
 	private char[] getRandomChars() {
 		int length = RANDOM.nextInt(MAX_LENGTH);
