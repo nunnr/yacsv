@@ -44,7 +44,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 	private boolean closed = false;
 	
 	// this will be our working buffer to hold data chunks read in from the data file
-	private DataBuffer dataBuffer = new DataBuffer(8192); // Reader.read(...) buffer
+	private Buffer dataBuffer = new Buffer(8192); // Reader.read(...) buffer
 	private Buffer columnBuffer = new Buffer(64); // INITIAL_COLUMN_BUFFER_SIZE
 	private Buffer rawBuffer = new Buffer(1024); // INITIAL_COLUMN_BUFFER_SIZE * INITIAL_COLUMN_COUNT
 	
@@ -54,6 +54,11 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 	private boolean hasMoreData = true;
 	private int columnsCount = 0;
 	private long currentRecord = 0;
+	/** How much usable data has been read into the stream, which will not always be as long as Buffer.Length. */
+	private int count = 0;
+	/** The position of the cursor in the buffer when the current column was started or the last time data was moved out to the column buffer. */
+	private int columnStart = 0;
+	private int lineStart = 0;
 	private String[] values = new String[16]; // INITIAL_COLUMN_COUNT
 	private boolean[] isQualified = new boolean[16]; // INITIAL_COLUMN_COUNT
 	private String[] csvHeaders = {};
@@ -115,18 +120,6 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 			
 			buffer[position] = letter;
 			position++;
-		}
-	}
-	
-	private class DataBuffer extends Buffer {
-		/** How much usable data has been read into the stream, which will not always be as long as Buffer.Length. */
-		public int count = 0;
-		/** The position of the cursor in the buffer when the current column was started or the last time data was moved out to the column buffer. */
-		public int columnStart = 0;
-		public int lineStart = 0;
-		
-		public DataBuffer(int size) {
-			super(size);
 		}
 		
 		/** @return Reader.read(...) != -1, that is TRUE indicates more data is available. */
@@ -567,8 +560,8 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 			rawRecord = new String(rawBuffer.buffer, 0, rawBuffer.position);
 			
 			// When hasMoreData == false, all data has already been copied to the raw buffer.
-			if (hasMoreData && dataBuffer.position > dataBuffer.lineStart) {
-				rawRecord += new String(dataBuffer.buffer, dataBuffer.lineStart, dataBuffer.position - dataBuffer.lineStart - 1);
+			if (hasMoreData && dataBuffer.position > lineStart) {
+				rawRecord += new String(dataBuffer.buffer, lineStart, dataBuffer.position - lineStart - 1);
 			}
 		}
 		else {
@@ -587,14 +580,14 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		columnsCount = 0;
 		rawBuffer.position = 0;
 		
-		dataBuffer.lineStart = dataBuffer.position;
+		lineStart = dataBuffer.position;
 		
 		boolean hasReadNextLine = false;
 		
 		if (hasMoreData) {
 			// loop over the data stream until the end of data is found or the end of the record is found
 			do {
-				if (dataBuffer.position == dataBuffer.count) {
+				if (dataBuffer.position == count) {
 					readData();
 				}
 				else {
@@ -609,7 +602,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 						boolean lastLetterWasQualifier = false;
 						
 						startedColumn = true;
-						dataBuffer.columnStart = dataBuffer.position + 1;
+						columnStart = dataBuffer.position + 1;
 						
 						lastLetter = currentLetter;
 						
@@ -625,14 +618,14 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 						dataBuffer.position++;
 						
 						do {
-							if (dataBuffer.position == dataBuffer.count) {
+							if (dataBuffer.position == count) {
 								readData();
 							}
 							else {
 								currentLetter = dataBuffer.buffer[dataBuffer.position];
 								
 								if (eatingTrailingJunk) {
-									dataBuffer.columnStart = dataBuffer.position + 1;
+									columnStart = dataBuffer.position + 1;
 									
 									if (currentLetter == cellDelimiter) {
 										endColumn();
@@ -680,7 +673,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 											currentRecord++;
 										}
 										else {
-											dataBuffer.columnStart = dataBuffer.position + 1;
+											columnStart = dataBuffer.position + 1;
 											eatingTrailingJunk = true;
 										}
 										
@@ -712,7 +705,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 							currentRecord++;
 						}
 						else {
-							dataBuffer.lineStart = dataBuffer.position + 1;
+							lineStart = dataBuffer.position + 1;
 						}
 						
 						lastLetter = currentLetter;
@@ -725,12 +718,12 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 					else if (trimWhitespace && Character.isWhitespace(currentLetter)) {
 						// do nothing, this will trim leading whitespace for both text qualified columns and non
 						startedColumn = true;
-						dataBuffer.columnStart = dataBuffer.position + 1;
+						columnStart = dataBuffer.position + 1;
 					}
 					else {
 						// since the letter wasn't a special letter, this will be the first letter of our current column
 						startedColumn = true;
-						dataBuffer.columnStart = dataBuffer.position;
+						columnStart = dataBuffer.position;
 						boolean lastLetterWasBackslash = false;
 						readingComplexEscape = false;
 						escape = ComplexEscape.UNICODE;
@@ -740,7 +733,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 						boolean firstLoop = true;
 						
 						do {
-							if ( ! firstLoop && dataBuffer.position == dataBuffer.count) {
+							if ( ! firstLoop && dataBuffer.position == count) {
 								readData();
 							}
 							else {
@@ -847,7 +840,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 			appendEscapedChar(escapeValue);
 		}
 		else {
-			dataBuffer.columnStart = dataBuffer.position + 1;
+			columnStart = dataBuffer.position + 1;
 		}
 	}
 	
@@ -911,15 +904,15 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 	private void readData() throws IOException {
 		updateCurrentValue();
 		
-		if (captureRawRecord && dataBuffer.count > 0) {
-			rawBuffer.append(dataBuffer, dataBuffer.lineStart, dataBuffer.count);
+		if (captureRawRecord && count > 0) {
+			rawBuffer.append(dataBuffer, lineStart, count);
 		}
 		
 		hasMoreData = dataBuffer.read(reader);
 		
 		dataBuffer.position = 0;
-		dataBuffer.lineStart = 0;
-		dataBuffer.columnStart = 0;
+		lineStart = 0;
+		columnStart = 0;
 	}
 	
 	/** Read the first record of data as column headers.
@@ -962,16 +955,16 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		
 		if (startedColumn) {
 			if (columnBuffer.position == 0) {
-				if (dataBuffer.columnStart < dataBuffer.position) {
+				if (columnStart < dataBuffer.position) {
 					int lastLetter = dataBuffer.position - 1;
 					
 					if (trimWhitespace && ! startedWithQualifier) {
-						while (lastLetter >= dataBuffer.columnStart && Character.isWhitespace(dataBuffer.buffer[lastLetter])) {
+						while (lastLetter >= columnStart && Character.isWhitespace(dataBuffer.buffer[lastLetter])) {
 							lastLetter--;
 						}
 					}
 					
-					currentValue = new String(dataBuffer.buffer, dataBuffer.columnStart, lastLetter - dataBuffer.columnStart + 1);
+					currentValue = new String(dataBuffer.buffer, columnStart, lastLetter - columnStart + 1);
 				}
 				else {
 					currentValue = "";
@@ -1023,20 +1016,20 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		escape = escapeType;
 		escapeLength = escapeLen;
 		escapeValue = escapeVal;
-		dataBuffer.columnStart = dataBuffer.position + 1;
+		columnStart = dataBuffer.position + 1;
 	}
 	
 	private void appendEscapedChar(char letter) {
 		columnBuffer.append(letter);
-		dataBuffer.columnStart = dataBuffer.position + 1;
+		columnStart = dataBuffer.position + 1;
 	}
 	
 	private void updateCurrentValue() {
-		if (startedColumn && dataBuffer.columnStart < dataBuffer.position) {
-			columnBuffer.append(dataBuffer, dataBuffer.columnStart, dataBuffer.position);
+		if (startedColumn && columnStart < dataBuffer.position) {
+			columnBuffer.append(dataBuffer, columnStart, dataBuffer.position);
 		}
 		
-		dataBuffer.columnStart = dataBuffer.position + 1;
+		columnStart = dataBuffer.position + 1;
 	}
 	
 	/** Gets the corresponding column index for a given column header name.
@@ -1083,7 +1076,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 			boolean foundEol = false;
 			
 			do {
-				if (dataBuffer.position == dataBuffer.count) {
+				if (dataBuffer.position == count) {
 					readData();
 				}
 				else {
@@ -1102,7 +1095,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 			} while (hasMoreData && ! foundEol);
 			
 			columnBuffer.position = 0;
-			dataBuffer.lineStart = dataBuffer.position + 1;
+			lineStart = dataBuffer.position + 1;
 		}
 		
 		rawBuffer.position = 0;
