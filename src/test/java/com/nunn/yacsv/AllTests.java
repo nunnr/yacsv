@@ -42,7 +42,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.text.NumberFormat;
 import java.util.ArrayList;
 
 import org.junit.After;
@@ -1609,11 +1608,9 @@ public class AllTests {
 		try {
 			reader.readRecord();
 		} catch (Exception ex) {
-			NumberFormat nf = NumberFormat.getIntegerInstance();
-			String max = nf.format(1000);
-			String msg = "Maximum column count of " + max + " exceeded in record 0."
+			String msg = "Maximum column count of 1000 exceeded in record 0."
 						+ " Configure config.setSafetySwitch(false) if you're expecting"
-						+ " more than " + max + " columns per record to avoid this error.";
+						+ " more than 1000 columns per record to avoid this error.";
 			assertException(new IOException(msg), ex);
 		}
 		reader.close();

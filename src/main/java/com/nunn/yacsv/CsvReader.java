@@ -31,7 +31,6 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.text.NumberFormat;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -44,7 +43,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 	private boolean closed = false;
 	
 	// this will be our working buffer to hold data chunks read in from the data file
-	private Buffer dataBuffer = new Buffer(8192); // Reader.read(...) buffer
+	private Buffer readBuffer = new Buffer(8192); // Reader.read(...) buffer
 	private Buffer columnBuffer = new Buffer(64); // INITIAL_COLUMN_BUFFER_SIZE
 	private Buffer rawBuffer = new Buffer(1024); // INITIAL_COLUMN_BUFFER_SIZE * INITIAL_COLUMN_COUNT
 	
@@ -54,10 +53,10 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 	private boolean hasMoreData = true;
 	private int columnsCount = 0;
 	private long currentRecord = 0;
-	/** How much usable data has been read into the stream, which will not always be as long as Buffer.Length. */
-	private int count = 0;
-	/** The position of the cursor in the buffer when the current column was started or the last time data was moved out to the column buffer. */
-	private int columnStart = 0;
+	/** Count of data copied into buffer last read: 0 <= readCount <= readBuffer.buffer.length */
+	private int readCount = 0;
+	/** A read buffer index tracking consumption of data from the read buffer. */
+	private int readBufferConsumed = 0;
 	private int lineStart = 0;
 	private String[] values = new String[16]; // INITIAL_COLUMN_COUNT
 	private boolean[] isQualified = new boolean[16]; // INITIAL_COLUMN_COUNT
@@ -81,6 +80,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 	private char comment = Letters.POUND;
 	private boolean useComments = false;
 	private EscapeMode escapeMode = CsvReader.EscapeMode.DOUBLED;
+	private char escapeChar = Letters.QUOTE; // escapeMode == EscapeMode.BACKSLASH ? Letters.BACKSLASH : textQualifier
 	private SafetyLimiter safetyLimit = new SafetyLimiter();
 	private boolean skipEmptyRecords = true;
 	private boolean captureRawRecord = false;
@@ -122,16 +122,16 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 			position++;
 		}
 		
-		/** @return Reader.read(...) != -1, that is TRUE indicates more data is available. */
-		public boolean read(Reader reader) throws IOException {
-			try {
-				count = reader.read(buffer, 0, buffer.length);
+		public int getTrimmedPosition(int min) {
+			int lastLetter = position;
+			if (trimWhitespace && ! startedWithQualifier) {
+				lastLetter--;
+				while (lastLetter >= min && Character.isWhitespace(buffer[lastLetter])) {
+					lastLetter--;
+				}
+				lastLetter++;
 			}
-			catch (IOException ex) {
-				close();
-				throw ex;
-			}
-			return count != -1;
+			return lastLetter;
 		}
 	}
 	
@@ -179,15 +179,11 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 	}
 	
 	private class SafetyLimiter {
-		private static final int MAX_COLUMNS = 1000;
-		
 		public void test() throws IOException {
-			if (columnsCount >= MAX_COLUMNS) {
+			if (columnsCount >= 1000) {
 				close();
-				NumberFormat nf = NumberFormat.getIntegerInstance();
-				String max = nf.format(MAX_COLUMNS);
-				throw new IOException("Maximum column count of " + max + " exceeded in record " + nf.format(currentRecord)
-						+ ". Configure config.setSafetySwitch(false) if you're expecting more than " + max + " columns per record to avoid this error.");
+				throw new IOException("Maximum column count of 1000 exceeded in record " + currentRecord
+						+ ". Configure config.setSafetySwitch(false) if you're expecting more than 1000 columns per record to avoid this error.");
 			}
 		}
 	}
@@ -424,6 +420,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		 * @param mode The method used to escape an occurrence of the text qualifier inside qualified data. */
 		public void setEscapeMode(EscapeMode mode) {
 			escapeMode = mode;
+			escapeChar = mode == EscapeMode.BACKSLASH ? Letters.BACKSLASH : textQualifier;
 		}
 		
 		/** Get option to silently skip empty records. Default: TRUE
@@ -560,8 +557,8 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 			rawRecord = new String(rawBuffer.buffer, 0, rawBuffer.position);
 			
 			// When hasMoreData == false, all data has already been copied to the raw buffer.
-			if (hasMoreData && dataBuffer.position > lineStart) {
-				rawRecord += new String(dataBuffer.buffer, lineStart, dataBuffer.position - lineStart - 1);
+			if (hasMoreData && readBuffer.position > lineStart) {
+				rawRecord += new String(readBuffer.buffer, lineStart, readBuffer.position - lineStart - 1);
 			}
 		}
 		else {
@@ -580,20 +577,20 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		columnsCount = 0;
 		rawBuffer.position = 0;
 		
-		lineStart = dataBuffer.position;
+		lineStart = readBuffer.position;
 		
 		boolean hasReadNextLine = false;
 		
 		if (hasMoreData) {
 			// loop over the data stream until the end of data is found or the end of the record is found
 			do {
-				if (dataBuffer.position == count) {
+				if (readBuffer.position == readCount) {
 					readData();
 				}
 				else {
 					startedWithQualifier = false;
 					
-					currentLetter = dataBuffer.buffer[dataBuffer.position];
+					currentLetter = readBuffer.buffer[readBuffer.position];
 					
 					if (useTextQualifier && currentLetter == textQualifier) {
 						// this will be a text qualified column, so we need to set startedWithQualifier
@@ -602,11 +599,9 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 						boolean lastLetterWasQualifier = false;
 						
 						startedColumn = true;
-						columnStart = dataBuffer.position + 1;
+						readBufferConsumed = readBuffer.position + 1;
 						
 						lastLetter = currentLetter;
-						
-						char escapeChar = escapeMode == EscapeMode.BACKSLASH ? Letters.BACKSLASH : textQualifier;
 						
 						boolean eatingTrailingJunk = false;
 						boolean lastLetterWasEscape = false;
@@ -615,17 +610,17 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 						escapeLength = 0;
 						escapeValue = Letters.NULL;
 						
-						dataBuffer.position++;
+						readBuffer.position++;
 						
 						do {
-							if (dataBuffer.position == count) {
+							if (readBuffer.position == readCount) {
 								readData();
 							}
 							else {
-								currentLetter = dataBuffer.buffer[dataBuffer.position];
+								currentLetter = readBuffer.buffer[readBuffer.position];
 								
 								if (eatingTrailingJunk) {
-									columnStart = dataBuffer.position + 1;
+									readBufferConsumed = readBuffer.position + 1;
 									
 									if (currentLetter == cellDelimiter) {
 										endColumn();
@@ -673,7 +668,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 											currentRecord++;
 										}
 										else {
-											columnStart = dataBuffer.position + 1;
+											readBufferConsumed = readBuffer.position + 1;
 											eatingTrailingJunk = true;
 										}
 										
@@ -686,14 +681,14 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 								lastLetter = currentLetter;
 								
 								if (startedColumn) {
-									dataBuffer.position++;
+									readBuffer.position++;
 									safetyLimit.test();
 								}
 							}
 						} while (hasMoreData && startedColumn);
 					}
 					else if (currentLetter == cellDelimiter) {
-						// we encountered a column with no data, so just send the end column
+						// a column with no data
 						lastLetter = currentLetter;
 						endColumn();
 					}
@@ -705,7 +700,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 							currentRecord++;
 						}
 						else {
-							lineStart = dataBuffer.position + 1;
+							lineStart = readBuffer.position + 1;
 						}
 						
 						lastLetter = currentLetter;
@@ -718,12 +713,12 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 					else if (trimWhitespace && Character.isWhitespace(currentLetter)) {
 						// do nothing, this will trim leading whitespace for both text qualified columns and non
 						startedColumn = true;
-						columnStart = dataBuffer.position + 1;
+						readBufferConsumed = readBuffer.position + 1;
 					}
 					else {
 						// since the letter wasn't a special letter, this will be the first letter of our current column
 						startedColumn = true;
-						columnStart = dataBuffer.position;
+						readBufferConsumed = readBuffer.position;
 						boolean lastLetterWasBackslash = false;
 						readingComplexEscape = false;
 						escape = ComplexEscape.UNICODE;
@@ -733,12 +728,12 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 						boolean firstLoop = true;
 						
 						do {
-							if ( ! firstLoop && dataBuffer.position == count) {
+							if ( ! firstLoop && readBuffer.position == readCount) {
 								readData();
 							}
 							else {
 								if ( ! firstLoop) {
-									currentLetter = dataBuffer.buffer[dataBuffer.position];
+									currentLetter = readBuffer.buffer[readBuffer.position];
 								}
 								
 								if ( ! useTextQualifier && escapeMode == EscapeMode.BACKSLASH && currentLetter == Letters.BACKSLASH) {
@@ -768,7 +763,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 								firstLoop = false;
 								
 								if (startedColumn) {
-									dataBuffer.position++;
+									readBuffer.position++;
 									safetyLimit.test();
 								}
 							}
@@ -776,10 +771,10 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 					}
 					
 					if (hasMoreData) {
-						dataBuffer.position++;
+						readBuffer.position++;
 					}
 				}
-			} while (hasMoreData && !hasReadNextLine);
+			} while (hasMoreData && ! hasReadNextLine);
 			
 			// check to see if we hit the end of the file without processing the current record
 			if (startedColumn || lastLetter == cellDelimiter) {
@@ -840,7 +835,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 			appendEscapedChar(escapeValue);
 		}
 		else {
-			columnStart = dataBuffer.position + 1;
+			readBufferConsumed = readBuffer.position + 1;
 		}
 	}
 	
@@ -904,15 +899,23 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 	private void readData() throws IOException {
 		updateCurrentValue();
 		
-		if (captureRawRecord && count > 0) {
-			rawBuffer.append(dataBuffer, lineStart, count);
+		if (captureRawRecord && readCount > 0) {
+			rawBuffer.append(readBuffer, lineStart, readCount);
 		}
 		
-		hasMoreData = dataBuffer.read(reader);
+		try {
+			readCount = reader.read(readBuffer.buffer, 0, readBuffer.buffer.length);
+		}
+		catch (IOException ex) {
+			close();
+			throw ex;
+		}
 		
-		dataBuffer.position = 0;
+		hasMoreData = readCount != -1;
+		
+		readBuffer.position = 0;
 		lineStart = 0;
-		columnStart = 0;
+		readBufferConsumed = 0;
 	}
 	
 	/** Read the first record of data as column headers.
@@ -954,17 +957,9 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		String currentValue;
 		
 		if (startedColumn) {
-			if (columnBuffer.position == 0) {
-				if (columnStart < dataBuffer.position) {
-					int lastLetter = dataBuffer.position - 1;
-					
-					if (trimWhitespace && ! startedWithQualifier) {
-						while (lastLetter >= columnStart && Character.isWhitespace(dataBuffer.buffer[lastLetter])) {
-							lastLetter--;
-						}
-					}
-					
-					currentValue = new String(dataBuffer.buffer, columnStart, lastLetter - columnStart + 1);
+			if (columnBuffer.position == 0) { // skip use of column buffer as it has no data - use readBuffer directly
+				if (readBufferConsumed < readBuffer.position) {
+					currentValue = new String(readBuffer.buffer, readBufferConsumed, readBuffer.getTrimmedPosition(readBufferConsumed) - readBufferConsumed);
 				}
 				else {
 					currentValue = "";
@@ -972,16 +967,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 			}
 			else {
 				updateCurrentValue();
-				
-				int lastLetter = columnBuffer.position - 1;
-				
-				if (trimWhitespace && ! startedWithQualifier) {
-					while (lastLetter >= 0 && Character.isWhitespace(columnBuffer.buffer[lastLetter])) {
-						lastLetter--;
-					}
-				}
-				
-				currentValue = new String(columnBuffer.buffer, 0, lastLetter + 1);
+				currentValue = new String(columnBuffer.buffer, 0, columnBuffer.getTrimmedPosition(0));
 			}
 		}
 		else {
@@ -1016,20 +1002,20 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		escape = escapeType;
 		escapeLength = escapeLen;
 		escapeValue = escapeVal;
-		columnStart = dataBuffer.position + 1;
+		readBufferConsumed = readBuffer.position + 1;
 	}
 	
 	private void appendEscapedChar(char letter) {
 		columnBuffer.append(letter);
-		columnStart = dataBuffer.position + 1;
+		readBufferConsumed = readBuffer.position + 1;
 	}
 	
 	private void updateCurrentValue() {
-		if (startedColumn && columnStart < dataBuffer.position) {
-			columnBuffer.append(dataBuffer, columnStart, dataBuffer.position);
+		if (startedColumn && readBufferConsumed < readBuffer.position) {
+			columnBuffer.append(readBuffer, readBufferConsumed, readBuffer.position);
 		}
 		
-		columnStart = dataBuffer.position + 1;
+		readBufferConsumed = readBuffer.position + 1;
 	}
 	
 	/** Gets the corresponding column index for a given column header name.
@@ -1076,26 +1062,26 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 			boolean foundEol = false;
 			
 			do {
-				if (dataBuffer.position == count) {
+				if (readBuffer.position == readCount) {
 					readData();
 				}
 				else {
 					skippedLine = true;
 					
-					currentLetter = dataBuffer.buffer[dataBuffer.position];
+					currentLetter = readBuffer.buffer[readBuffer.position];
 					lastLetter = currentLetter; // keep track of the last letter because we need it for several key decisions
 					
 					if (currentLetter == Letters.CR || currentLetter == Letters.LF) {
 						foundEol = true;
 					}
 					else {
-						dataBuffer.position++;
+						readBuffer.position++;
 					}
 				}
 			} while (hasMoreData && ! foundEol);
 			
 			columnBuffer.position = 0;
-			lineStart = dataBuffer.position + 1;
+			lineStart = readBuffer.position + 1;
 		}
 		
 		rawBuffer.position = 0;
@@ -1119,7 +1105,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 				// eat the exception
 			}
 		}
-		dataBuffer = null;
+		readBuffer = null;
 		columnBuffer = null;
 		rawBuffer = null;
 		reader = null;
