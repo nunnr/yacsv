@@ -583,7 +583,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		
 		if (hasMoreData) {
 			// loop over the data stream until the end of data is found or the end of the record is found
-			do {
+			do { // row level loop
 				if (readBuffer.position == readCount) {
 					readData();
 				}
@@ -612,7 +612,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 						
 						readBuffer.position++;
 						
-						do {
+						do { // column level loop
 							if (readBuffer.position == readCount) {
 								readData();
 							}
@@ -657,24 +657,22 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 									updateCurrentValue();
 									lastLetterWasEscape = true;
 								}
-								else {
-									if (lastLetterWasQualifier) {
-										if (currentLetter == cellDelimiter) {
-											endColumn();
-										}
-										else if (recordDelimiter.matches()) {
-											endColumn();
-											hasReadNextLine = true;
-											currentRecord++;
-										}
-										else {
-											readBufferConsumed = readBuffer.position + 1;
-											eatingTrailingJunk = true;
-										}
-										
-										// make sure to clear the flag for next run of the loop
-										lastLetterWasQualifier = false;
+								else if (lastLetterWasQualifier) {
+									if (currentLetter == cellDelimiter) {
+										endColumn();
 									}
+									else if (recordDelimiter.matches()) {
+										endColumn();
+										hasReadNextLine = true;
+										currentRecord++;
+									}
+									else {
+										readBufferConsumed = readBuffer.position + 1;
+										eatingTrailingJunk = true;
+									}
+									
+									// make sure to clear the flag for next run of the loop
+									lastLetterWasQualifier = false;
 								}
 								
 								// keep track of the last letter because we need it for several key decisions
@@ -693,13 +691,13 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 						endColumn();
 					}
 					else if (recordDelimiter.matches()) {
-						// this will skip blank lines
+						// a blank line
 						if (recordDelimiter.includeEmptyRecord()) {
 							endColumn();
 							hasReadNextLine = true;
 							currentRecord++;
 						}
-						else {
+						else { // skip blank line
 							lineStart = readBuffer.position + 1;
 						}
 						
@@ -725,18 +723,14 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 						escapeLength = 0;
 						escapeValue = Letters.NULL;
 						
-						boolean firstLoop = true;
-						
 						do {
-							if ( ! firstLoop && readBuffer.position == readCount) {
+							if (readBuffer.position == readCount) {
 								readData();
 							}
 							else {
-								if ( ! firstLoop) {
-									currentLetter = readBuffer.buffer[readBuffer.position];
-								}
+								currentLetter = readBuffer.buffer[readBuffer.position];
 								
-								if ( ! useTextQualifier && escapeMode == EscapeMode.BACKSLASH && currentLetter == Letters.BACKSLASH) {
+								if (escapeMode == EscapeMode.BACKSLASH && currentLetter == Letters.BACKSLASH) {
 									if ( ! lastLetterWasBackslash) {
 										updateCurrentValue();
 									}
@@ -760,7 +754,6 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 								
 								// keep track of the last letter because we need it for several key decisions
 								lastLetter = currentLetter;
-								firstLoop = false;
 								
 								if (startedColumn) {
 									readBuffer.position++;
