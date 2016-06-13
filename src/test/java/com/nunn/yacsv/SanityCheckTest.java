@@ -1,11 +1,8 @@
 package com.nunn.yacsv;
 
-import static org.junit.Assert.assertEquals;
-
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -13,10 +10,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-public class SanityCheck {
+public class SanityCheckTest {
 	
 	private File tempCsv, csvSource;
 	private URL testdata;
@@ -31,7 +29,9 @@ public class SanityCheck {
 	@After
 	public void tearDown() throws Exception {
 		if (tempCsv != null) {
-			tempCsv.delete();
+			if ( ! tempCsv.delete()) {
+				throw new Exception("Temp file delete failed. May need manual clean up.");
+			}
 		}
 	}
 
@@ -39,7 +39,7 @@ public class SanityCheck {
 	public void test() throws IOException {
 		try (
 			CsvReader csvReader = new CsvReader(testdata.openStream(), StandardCharsets.UTF_8);
-			CsvWriter csvWriter = new CsvWriter(new FileWriter(tempCsv));
+			CsvWriter csvWriter = new CsvWriter(Files.newBufferedWriter(tempCsv.toPath())); // UTF-8 default
 		) {
 			csvWriter.config.setRecordDelimiter("\n");
 			for (String[] row : csvReader) {
@@ -47,18 +47,18 @@ public class SanityCheck {
 			}
 		}
 		
-		assertEquals(tempCsv.length(), csvSource.length());
+		Assert.assertEquals("Written file length not equal to source file.", csvSource.length(), tempCsv.length());
 
 		try (
-			InputStream in1 = new BufferedInputStream(new FileInputStream(tempCsv));
-			InputStream in2 = new BufferedInputStream(new FileInputStream(csvSource));
+			InputStream in1 = new BufferedInputStream(new FileInputStream(csvSource));
+			InputStream in2 = new BufferedInputStream(new FileInputStream(tempCsv));
 		) {
 
 			int value1, value2;
 			do {
 				value1 = in1.read();
 				value2 = in2.read();
-				assertEquals(value1, value2);
+				Assert.assertEquals("Written file differs from source file.", value1, value2);
 			} while (value1 != -1);
 		}
 	}

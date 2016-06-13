@@ -26,7 +26,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -53,14 +52,16 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.Test.None;
 
-public class AllTests {
+import com.nunn.yacsv.CsvReader.EmptyCellHandling;
+
+public class YacsvTest {
 	
 	private static File tempFile;
 	
 	public static void main(String[] args) throws Exception {
 		System.out.println("Starting all tests.");
 		
-		Class<AllTests> testClass = AllTests.class;
+		Class<YacsvTest> testClass = YacsvTest.class;
 		
 		ArrayList<Method> classSetups = new ArrayList<Method>();
 		ArrayList<Method> setups = new ArrayList<Method>();
@@ -171,7 +172,9 @@ public class AllTests {
 	@AfterClass
 	public static void runAfterClass() {
 		if (tempFile != null) {
-			tempFile.delete();
+			if ( ! tempFile.delete()) {
+				throw new RuntimeException("Did not delete temporary test file.");
+			}
 		}
 	}
 
@@ -221,6 +224,7 @@ public class AllTests {
 
 		CsvReader reader = CsvReader.parse(data);
 		reader.config.setCaptureRawRecord(true);
+		reader.config.setEmptyCellHandling(EmptyCellHandling.ALWAYS_EMPTY);
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("", reader.get(0));
 		Assert.assertEquals("", reader.get(1));
@@ -447,6 +451,7 @@ public class AllTests {
 
 		CsvReader reader = CsvReader.parse(data);
 		reader.config.setCaptureRawRecord(true);
+		reader.config.setEmptyCellHandling(EmptyCellHandling.ALWAYS_EMPTY);
 		reader.config.setDelimiter('\r');
 		Assert.assertTrue(reader.readRecord());
 		Assert.assertEquals("", reader.get(0));
@@ -727,26 +732,26 @@ public class AllTests {
 
 	@Test
 	public void test031() throws Exception {
-		CsvWriter writer = new CsvWriter(new PrintWriter(
-				new OutputStreamWriter(new FileOutputStream("temp.csv"),
-						StandardCharsets.UTF_8)), ',');
-		// writer will trim all whitespace and put this in quotes to preserve
-		// it's existence
-		writer.writeTrimmed(" \t \t");
-		writer.close();
-
-		CsvReader reader = new CsvReader(new InputStreamReader(
-				new FileInputStream("temp.csv"), StandardCharsets.UTF_8));
-		reader.config.setCaptureRawRecord(true);
-		Assert.assertTrue(reader.readRecord());
-		Assert.assertEquals("", reader.get(0));
-		Assert.assertEquals(1, reader.getColumnCount());
-		Assert.assertEquals(0L, reader.getCurrentRecord());
-		Assert.assertEquals("\"\"", reader.getRawRecord());
-		Assert.assertFalse(reader.readRecord());
-		reader.close();
-
-		new File("temp.csv").delete();
+		try {
+			CsvWriter writer = new CsvWriter("temp.csv", ',', StandardCharsets.UTF_8);
+			// writer will trim all whitespace and put this in quotes to preserve it's existence
+			writer.writeTrimmed(" \t \t");
+			writer.close();
+			
+			CsvReader reader = new CsvReader("temp.csv", StandardCharsets.UTF_8);
+			reader.config.setCaptureRawRecord(true);
+			reader.config.setEmptyCellHandling(EmptyCellHandling.ALWAYS_EMPTY);
+			Assert.assertTrue(reader.readRecord());
+			Assert.assertEquals("", reader.get(0));
+			Assert.assertEquals(1, reader.getColumnCount());
+			Assert.assertEquals(0L, reader.getCurrentRecord());
+			Assert.assertEquals("\"\"", reader.getRawRecord());
+			Assert.assertFalse(reader.readRecord());
+			reader.close();
+		}
+		finally {
+			Assert.assertTrue(new File("temp.csv").delete());
+		}
 	}
 
 	@Test
@@ -774,13 +779,13 @@ public class AllTests {
 		// exception
 		String fileName = "somefile.csv";
 
-		new File(fileName).createNewFile();
-
 		try {
+			Assert.assertTrue(new File(fileName).createNewFile());
 			CsvReader reader = new CsvReader(new FileInputStream(fileName), StandardCharsets.UTF_8);
 			reader.close();
-		} finally {
-			new File(fileName).delete();
+		}
+		finally {
+			Assert.assertTrue(new File(fileName).delete());
 		}
 	}
 
@@ -902,6 +907,7 @@ public class AllTests {
 
 		CsvReader reader = CsvReader.parse(data);
 		reader.config.setCaptureRawRecord(true);
+		reader.config.setEmptyCellHandling(EmptyCellHandling.ALWAYS_EMPTY);
 		Assert.assertFalse(reader.config.getTrimWhitespace());
 		reader.config.setTrimWhitespace(true);
 		Assert.assertTrue(reader.config.getTrimWhitespace());
@@ -1664,19 +1670,22 @@ public class AllTests {
 
 	@Test
 	public void test087() throws Exception {
-		CsvWriter writer = new CsvWriter("temp.csv");
-		writer.writeTrimmed("1");
-		writer.close();
-
-		CsvReader reader = new CsvReader(new FileInputStream("temp.csv"), StandardCharsets.UTF_8);
-		Assert.assertTrue(reader.readRecord());
-		Assert.assertEquals("1", reader.get(0));
-		Assert.assertEquals(1, reader.getColumnCount());
-		Assert.assertEquals(0L, reader.getCurrentRecord());
-		Assert.assertFalse(reader.readRecord());
-		reader.close();
-
-		new File("temp.csv").delete();
+		try {
+			CsvWriter writer = new CsvWriter("temp.csv");
+			writer.writeTrimmed("1");
+			writer.close();
+	
+			CsvReader reader = new CsvReader(new FileInputStream("temp.csv"), StandardCharsets.UTF_8);
+			Assert.assertTrue(reader.readRecord());
+			Assert.assertEquals("1", reader.get(0));
+			Assert.assertEquals(1, reader.getColumnCount());
+			Assert.assertEquals(0L, reader.getCurrentRecord());
+			Assert.assertFalse(reader.readRecord());
+			reader.close();
+		}
+		finally {
+			Assert.assertTrue(new File("temp.csv").delete());
+		}
 	}
 
 	@Test
@@ -2042,6 +2051,7 @@ public class AllTests {
 	@Test
 	public void test135() throws Exception {
 		CsvReader reader = CsvReader.parse("1\n\n1\r\r1\r\n\r\n1\n\r1");
+		reader.config.setEmptyCellHandling(EmptyCellHandling.ALWAYS_EMPTY);
 		Assert.assertTrue(reader.config.getSkipEmptyRecords());
 		reader.config.setSkipEmptyRecords(false);
 		Assert.assertFalse(reader.config.getSkipEmptyRecords());
@@ -2116,6 +2126,7 @@ public class AllTests {
 	@Test
 	public void test137() throws Exception {
 		CsvReader reader = CsvReader.parse("1;; ;1");
+		reader.config.setEmptyCellHandling(EmptyCellHandling.ALWAYS_EMPTY);
 		
 		Assert.assertArrayEquals(new char[]{'\r', '\n'}, reader.config.getRecordDelimiter());
 		reader.config.setRecordDelimiter(';');
@@ -2152,6 +2163,7 @@ public class AllTests {
 	@Test
 	public void test138() throws Exception {
 		CsvReader reader = CsvReader.parse("1;; ;1");
+		reader.config.setEmptyCellHandling(EmptyCellHandling.ALWAYS_EMPTY);
 		reader.config.setRecordDelimiter(';');
 		Assert.assertFalse(reader.config.getTrimWhitespace());
 		reader.config.setTrimWhitespace(true);
@@ -2268,11 +2280,11 @@ public class AllTests {
 	public void test149() throws Exception {
 		try
 		{
-			new CsvReader("C:\\somefilethatdoesntexist.csv", Charset.defaultCharset()).close();
+			new CsvReader("somefilethatdoesntexist.csv", Charset.defaultCharset()).close();
 		}
 		catch (Exception ex)
 		{
-			assertException(new IllegalArgumentException("Could not resolve the given file name: C:\\somefilethatdoesntexist.csv"), ex);
+			assertException(new IllegalArgumentException("Could not resolve the given file name: somefilethatdoesntexist.csv"), ex);
 		}
 	}
 
@@ -2311,7 +2323,7 @@ public class AllTests {
 		}
 	}
 
-	private class FailingReader extends Reader {
+	private static class FailingReader extends Reader {
 		public boolean disposeCalled = false;
 
 		public FailingReader() {
@@ -2332,24 +2344,27 @@ public class AllTests {
 	@Test
 	public void test174() throws IOException {
 		// verifies that data is eventually automatically flushed
-		CsvWriter writer = new CsvWriter("temp.csv");
-		
-		for (int i = 0; i < 10000; i++)
-		{
-			writer.writeTrimmed("stuff");
-			writer.endRecord();
+		try {
+			CsvWriter writer = new CsvWriter("temp.csv");
+			
+			for (int i = 0; i < 10000; i++)
+			{
+				writer.writeTrimmed("stuff");
+				writer.endRecord();
+			}
+			
+			CsvReader reader = new CsvReader(new FileInputStream("temp.csv"), StandardCharsets.UTF_8);
+			
+			Assert.assertTrue(reader.readRecord());
+			
+			Assert.assertEquals("stuff", reader.get(0));
+			
+			writer.close();
+			reader.close();
 		}
-		
-		CsvReader reader = new CsvReader(new FileInputStream("temp.csv"), StandardCharsets.UTF_8);
-		
-		Assert.assertTrue(reader.readRecord());
-		
-		Assert.assertEquals("stuff", reader.get(0));
-		
-		writer.close();
-		reader.close();
-
-		new File("temp.csv").delete();
+		finally {
+			Assert.assertTrue(new File("temp.csv").delete());
+		}
 	}
 	
 	/** checking close(boolean closeInputStream) */
@@ -2377,17 +2392,20 @@ public class AllTests {
 	
 	@Test
 	public void test176() throws Exception {
-		CsvWriter writer = new CsvWriter("temp.csv");
-		writer.writeTrimmed("1");
-		writer.close();
-
-		Path path = Paths.get("temp.csv");
-		
-		CsvReader reader = new CsvReader(path, StandardCharsets.UTF_8);
-		Assert.assertTrue(reader.readRecord());
-		reader.close();
-
-		new File("temp.csv").delete();
+		try {
+			CsvWriter writer = new CsvWriter("temp.csv");
+			writer.writeTrimmed("1");
+			writer.close();
+	
+			Path path = Paths.get("temp.csv");
+			
+			CsvReader reader = new CsvReader(path, StandardCharsets.UTF_8);
+			Assert.assertTrue(reader.readRecord());
+			reader.close();
+		}
+		finally {
+			Assert.assertTrue(new File("temp.csv").delete());
+		}
 	}
 	
 	/** test header setting */

@@ -80,6 +80,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 	private char comment = Letters.POUND;
 	private boolean useComments = false;
 	private EscapeMode escapeMode = CsvReader.EscapeMode.DOUBLED;
+	private EmptyCellHandling emptyCellHandling = CsvReader.EmptyCellHandling.ALWAYS_NULL;
 	private char escapeChar = Letters.QUOTE; // escapeMode == EscapeMode.BACKSLASH ? Letters.BACKSLASH : textQualifier
 	private SafetyLimiter safetyLimit = new SafetyLimiter();
 	private boolean skipEmptyRecords = true;
@@ -199,7 +200,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		UNICODE, OCTAL, DECIMAL, HEX;
 	}
 	
-	protected class Letters {
+	protected static class Letters {
 		public static final char LF = '\n';
 		public static final char CR = '\r';
 		public static final char QUOTE = '"';
@@ -221,6 +222,10 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		DOUBLED,
 		/** Use a backslash character before the text qualifier to represent an occurrence of the text qualifier. */
 		BACKSLASH;
+	}
+	
+	public static enum EmptyCellHandling {
+		NONQUOTED_NULL_QUOTED_EMPTY, ALWAYS_NULL, ALWAYS_EMPTY;
 	}
 	
 	/** Creates a {@link com.nunn.yacsv.CsvReader CsvReader} object using a String of data as the source.
@@ -344,7 +349,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		}
 		
 		/** Gets the record delimiter. For CSV this is typically some form of line ending. Default is [\r\n].
-		 * @return Single char or pair of chars (typically for "\r\n" usage) to represent record delimiter. */
+		 * @return Single char or pair of chars (typically for [\r\n] usage) to represent record delimiter. */
 		public char[] getRecordDelimiter() {
 			return recordDelimiter.getDelimiter();
 		}
@@ -421,6 +426,25 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		public void setEscapeMode(EscapeMode mode) {
 			escapeMode = mode;
 			escapeChar = mode == EscapeMode.BACKSLASH ? Letters.BACKSLASH : textQualifier;
+		}
+		
+		/** Gets the representation mode for an empty cell, i.e. the value returned by {@link com.nunn.yacsv.CsvReader#getValues getValues()}
+		 * when an empty cell is encountered.
+		 * Default is {@link com.nunn.yacsv.CsvReader.EmptyCellHandling#ALWAYS_NULL ALWAYS_NULL}.
+		 * @return The representation mode for empty cell values. */
+		public EmptyCellHandling getEmptyCellHandling() {
+			return emptyCellHandling;
+		}
+		
+		/** Sets the representation mode for an empty cell, i.e. the value returned by {@link com.nunn.yacsv.CsvReader#getValues getValues()}
+		 * when an empty cell is encountered. Options are:
+		 * {@link com.nunn.yacsv.CsvReader.EmptyCellHandling#ALWAYS_NULL ALWAYS_NULL} - output {@code null};
+		 * {@link com.nunn.yacsv.CsvReader.EmptyCellHandling#ALWAYS_EMPTY ALWAYS_EMPTY} - output empty String {@code ""};
+		 * {@link com.nunn.yacsv.CsvReader.EmptyCellHandling#NONQUOTED_NULL_QUOTED_EMPTY NONQUOTED_NULL_QUOTED_EMPTY} - output {@code null} unless empty cell is quoted.
+		 * Default is {@link com.nunn.yacsv.CsvReader.EmptyCellHandling#ALWAYS_NULL ALWAYS_NULL}. 
+		 * @param mode The representation mode for empty cell values. */
+		public void setEmptyCellHandling(EmptyCellHandling mode) {
+			emptyCellHandling = mode;
 		}
 		
 		/** Get option to silently skip empty records. Default: TRUE
@@ -954,7 +978,13 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 				if (readBufferConsumed < readBuffer.position) {
 					currentValue = new String(readBuffer.buffer, readBufferConsumed, readBuffer.getTrimmedPosition(readBufferConsumed) - readBufferConsumed);
 				}
-				else {
+				else if (emptyCellHandling == EmptyCellHandling.NONQUOTED_NULL_QUOTED_EMPTY) {
+					currentValue = startedWithQualifier ? "" : null;
+				}
+				else if (emptyCellHandling == EmptyCellHandling.ALWAYS_NULL) {
+					currentValue = null;
+				}
+				else { // EmptyCellHandling.ALWAYS_EMPTY
 					currentValue = "";
 				}
 			}
@@ -963,7 +993,13 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 				currentValue = new String(columnBuffer.buffer, 0, columnBuffer.getTrimmedPosition(0));
 			}
 		}
-		else {
+		else if (emptyCellHandling == EmptyCellHandling.NONQUOTED_NULL_QUOTED_EMPTY) {
+			currentValue = startedWithQualifier ? "" : null;
+		}
+		else if (emptyCellHandling == EmptyCellHandling.ALWAYS_NULL) {
+			currentValue = null;
+		}
+		else { // EmptyCellHandling.ALWAYS_EMPTY
 			currentValue = "";
 		}
 		
