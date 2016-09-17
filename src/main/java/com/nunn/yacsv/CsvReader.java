@@ -28,6 +28,7 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringReader;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -70,7 +71,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 	private char escapeValue;
 	
 	/** Configuration accessor - getters and setters for CsvReader behaviour options are exposed here. */
-	public final Config config = new Config();
+	public final Config config;
 	// Below are the options that the user may set. Initial values match IETF RFC 4180: http://tools.ietf.org/html/rfc4180
 	private char textQualifier = Letters.QUOTE;
 	private boolean trimWhitespace = false;
@@ -123,14 +124,16 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 			position++;
 		}
 		
-		public int getTrimmedPosition(int min) {
-			int lastLetter = position;
+		public int getPositionTrimmed(int min) {
+			int lastLetter = Math.max(position, min);
 			if (trimWhitespace && ! startedWithQualifier) {
-				lastLetter--;
-				while (lastLetter >= min && Character.isWhitespace(buffer[lastLetter])) {
+				while (lastLetter > min) {
 					lastLetter--;
+					if ( ! Character.isWhitespace(buffer[lastLetter])) {
+						lastLetter++;
+						break;
+					}
 				}
-				lastLetter++;
 			}
 			return lastLetter;
 		}
@@ -245,6 +248,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 			throw new IllegalArgumentException("Parameter inputReader can not be null.");
 		}
 		reader = inputReader;
+		config = new Config(this);
 	}
 	
 	/** Constructs a {@link com.nunn.yacsv.CsvReader CsvReader} object using an {@link java.io.InputStream InputStream} object as the data source.
@@ -254,6 +258,12 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		this(newReader(inputStream, charset));
 	}
 	
+	/** Constructs a {@link com.nunn.yacsv.CsvReader CsvReader} object using an {@link java.io.InputStream InputStream} object as the data source, using UTF-8 charset.
+	 * @param inputStream The data source. */
+	public CsvReader(InputStream inputStream) {
+		this(newReader(inputStream, StandardCharsets.UTF_8));
+	}
+	
 	/** Constructs a {@link com.nunn.yacsv.CsvReader CsvReader} object using a {@link java.nio.file.Path Path} object as the data source.
 	 * @param path The path to the data source.
 	 * @param charset The {@link java.nio.charset.Charset Charset} to interpret the data. */
@@ -261,11 +271,23 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		this(newReader(path, charset));
 	}
 	
+	/** Constructs a {@link com.nunn.yacsv.CsvReader CsvReader} object using a {@link java.nio.file.Path Path} object as the data source, using UTF-8 charset.
+	 * @param path The path to the data source. */
+	public CsvReader(Path path) {
+		this(newReader(path, StandardCharsets.UTF_8));
+	}
+	
 	/** Constructs a {@link com.nunn.yacsv.CsvReader CsvReader} object using the named file as the data source.
 	 * @param fileName The file name to resolve the data source.
 	 * @param charset The {@link java.nio.charset.Charset Charset} to interpret the data. */
 	public CsvReader(String fileName, Charset charset) {
 		this(newReader(fileName, charset));
+	}
+	
+	/** Constructs a {@link com.nunn.yacsv.CsvReader CsvReader} object using the named file as the data source, using UTF-8 charset.
+	 * @param fileName The file name to resolve the data source. */
+	public CsvReader(String fileName) {
+		this(newReader(fileName, StandardCharsets.UTF_8));
 	}
 	
 	private static Reader newReader(InputStream inputStream, Charset charset) {
@@ -310,7 +332,11 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 	
 	public class Config {
 		
-		private Config(){}
+		private final CsvReader csvReader;
+		
+		private Config(CsvReader csvReader){
+			this.csvReader = csvReader;
+		}
 		
 		/** Get value of option to additionally make records available as raw (not column-parsed) data. This adds a performance overhead. Default is FALSE.
 		 * @return Value of option to additionally make records available as raw data. */
@@ -320,8 +346,9 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		
 		/** Set value of option to additionally make records available as raw (not column-parsed) data. This adds a performance overhead. Default is FALSE.
 		 * @param capture Set TRUE to enable availability of raw record data. */
-		public void setCaptureRawRecord(boolean capture) {
+		public CsvReader setCaptureRawRecord(boolean capture) {
 			captureRawRecord = capture;
+			return csvReader;
 		}
 		
 		/** Gets value of option to trim leading and trailing whitespace characters from non-textqualified column data. Default is TRUE.
@@ -332,8 +359,9 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		
 		/** Sets option to trim leading and trailing whitespace characters from non-textqualified column data. Default is FALSE.
 		 * @param trim Set TRUE to trim leading and trailing whitespace characters from non-textqualified column data. */
-		public void setTrimWhitespace(boolean trim) {
+		public CsvReader setTrimWhitespace(boolean trim) {
 			trimWhitespace = trim;
+			return csvReader;
 		}
 		
 		/** Gets the character being used as the column delimiter. Default is comma: ,
@@ -344,8 +372,9 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		
 		/** Sets the character to use as the column delimiter. Default is comma: ,
 		 * @param delimiter The character to use as the column delimiter. */
-		public void setDelimiter(char delimiter) {
+		public CsvReader setDelimiter(char delimiter) {
 			cellDelimiter = delimiter;
+			return csvReader;
 		}
 		
 		/** Gets the record delimiter. For CSV this is typically some form of line ending. Default is [\r\n].
@@ -356,15 +385,17 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		
 		/** Sets a single character to use as the record delimiter. By default the delimiter is a pair of chars, not a single char.
 		 * @param delimiterOne The character to use as the record delimiter. */
-		public void setRecordDelimiter(char delimiterOne) {
+		public CsvReader setRecordDelimiter(char delimiterOne) {
 			recordDelimiter = new RecordDelimiterSingleChar(delimiterOne);
+			return csvReader;
 		}
 		
 		/** Sets a pair of characters to use as the record delimiter, e.g. [\r\n] for Windows line breaks.
 		 * @param delimiterOne The first character to use as the record delimiter.
 		 * @param delimiterTwo The second character to use as the record delimiter. */
-		public void setRecordDelimiter(char delimiterOne, char delimiterTwo) {
+		public CsvReader setRecordDelimiter(char delimiterOne, char delimiterTwo) {
 			recordDelimiter = new RecordDelimiter(delimiterOne, delimiterTwo);
+			return csvReader;
 		}
 		
 		/** Gets the character to use as a text qualifier in the data. Default is double quote: "
@@ -375,8 +406,9 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		
 		/** Sets the character to use as a text qualifier in the data. Default is double quote: "
 		 * @param qualifier The character to use as a text qualifier in the data. */
-		public void setTextQualifier(char qualifier) {
+		public CsvReader setTextQualifier(char qualifier) {
 			textQualifier = qualifier;
+			return csvReader;
 		}
 		
 		/** Gets the value of option to use a text qualifier while parsing. Default is TRUE.
@@ -387,8 +419,9 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		
 		/** Sets the option to use a text qualifier while parsing. Default is TRUE.
 		 * @param use Set TRUE to enable parsing with a text qualifier. */
-		public void setUseTextQualifier(boolean use) {
+		public CsvReader setUseTextQualifier(boolean use) {
 			useTextQualifier = use;
+			return csvReader;
 		}
 		
 		/** Gets the character being used as a comment signal. Default is pound/hash/sharp: #
@@ -399,8 +432,9 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		
 		/** Sets the character to use as a comment signal. Default is pound/hash/sharp: #
 		 * @param commentChar The character to use as a comment signal. */
-		public void setComment(char commentChar) {
+		public CsvReader setComment(char commentChar) {
 			comment = commentChar;
+			return csvReader;
 		}
 		
 		/** Gets the value of option to ignore comment data while parsing. Default is FALSE.
@@ -411,8 +445,9 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		
 		/** Sets the value of option to ignore comment data while parsing. Default is FALSE.
 		 * @param use Set TRUE to ignore comment data while parsing. */
-		public void setUseComments(boolean use) {
+		public CsvReader setUseComments(boolean use) {
 			useComments = use;
+			return csvReader;
 		}
 		
 		/** Gets the method used to escape an occurrence of the text qualifier inside qualified data. Default is {@link com.nunn.yacsv.CsvReader.EscapeMode#DOUBLED DOUBLED}
@@ -423,9 +458,10 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		
 		/** Sets the method used to escape an occurrence of the text qualifier inside qualified data. Default is {@link com.nunn.yacsv.CsvReader.EscapeMode#DOUBLED DOUBLED} 
 		 * @param mode The method used to escape an occurrence of the text qualifier inside qualified data. */
-		public void setEscapeMode(EscapeMode mode) {
+		public CsvReader setEscapeMode(EscapeMode mode) {
 			escapeMode = mode;
 			escapeChar = mode == EscapeMode.BACKSLASH ? Letters.BACKSLASH : textQualifier;
+			return csvReader;
 		}
 		
 		/** Gets the representation mode for an empty cell, i.e. the value returned by {@link com.nunn.yacsv.CsvReader#getValues getValues()}
@@ -443,8 +479,9 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		 * {@link com.nunn.yacsv.CsvReader.EmptyCellHandling#NONQUOTED_NULL_QUOTED_EMPTY NONQUOTED_NULL_QUOTED_EMPTY} - output {@code null} unless empty cell is quoted.
 		 * Default is {@link com.nunn.yacsv.CsvReader.EmptyCellHandling#ALWAYS_NULL ALWAYS_NULL}. 
 		 * @param mode The representation mode for empty cell values. */
-		public void setEmptyCellHandling(EmptyCellHandling mode) {
+		public CsvReader setEmptyCellHandling(EmptyCellHandling mode) {
 			emptyCellHandling = mode;
+			return csvReader;
 		}
 		
 		/** Get option to silently skip empty records. Default: TRUE
@@ -455,8 +492,9 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		
 		/** Set option to silently skip empty records. Default: TRUE
 		 * @param skip Set TRUE to silently skip empty records.*/
-		public void setSkipEmptyRecords(boolean skip) {
+		public CsvReader setSkipEmptyRecords(boolean skip) {
 			skipEmptyRecords = skip;
+			return csvReader;
 		}
 		
 		/** Get value of option to perform safe parsing. Default is TRUE.
@@ -471,13 +509,14 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		 * This feature is intended to prevent excessive memory use in the case where parsing settings (e.g. Charset) don't match the format of a file.
 		 * Disable if the file format is known and tested. When disabled, the max column count and length are greatly increased.
 		 * @param safetySwitch Set TRUE to enable the safe parsing feature. */
-		public void setSafetySwitch(boolean safetySwitch) {
+		public CsvReader setSafetySwitch(boolean safetySwitch) {
 			if (safetySwitch) {
 				safetyLimit = new SafetyLimiter();
 			}
 			else {
 				safetyLimit = new SafetyLimiterNoOp();
 			}
+			return csvReader;
 		}
 		
 	}
@@ -616,25 +655,19 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 					
 					currentLetter = readBuffer.buffer[readBuffer.position];
 					
-					if (useTextQualifier && currentLetter == textQualifier) {
-						// this will be a text qualified column, so we need to set startedWithQualifier
-						// to make it enter the seperate branch to handle text qualified columns
+					if (useTextQualifier && currentLetter == textQualifier) { // this will be a text qualified column
+						startedColumn = true;
 						startedWithQualifier = true;
 						boolean lastLetterWasQualifier = false;
-						
-						startedColumn = true;
-						readBufferConsumed = readBuffer.position + 1;
-						
-						lastLetter = currentLetter;
-						
 						boolean eatingTrailingJunk = false;
 						boolean lastLetterWasEscape = false;
 						readingComplexEscape = false;
 						escape = ComplexEscape.UNICODE;
 						escapeLength = 0;
 						escapeValue = Letters.NULL;
-						
+						lastLetter = currentLetter;
 						readBuffer.position++;
+						readBufferConsumed = readBuffer.position;
 						
 						do { // column level loop
 							if (readBuffer.position == readCount) {
@@ -811,38 +844,30 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 			case UNICODE:
 				escapeValue *= (char) 16;
 				escapeValue += hexToDec(currentLetter);
-				
 				if (escapeLength == 4) {
 					readingComplexEscape = false;
 				}
-				
 				break;
 			case OCTAL:
 				escapeValue *= (char) 8;
 				escapeValue += (char) (currentLetter - '0');
-				
 				if (escapeLength == 3) {
 					readingComplexEscape = false;
 				}
-				
 				break;
 			case DECIMAL:
 				escapeValue *= (char) 10;
 				escapeValue += (char) (currentLetter - '0');
-				
 				if (escapeLength == 3) {
 					readingComplexEscape = false;
 				}
-				
 				break;
 			case HEX:
 				escapeValue *= (char) 16;
 				escapeValue += hexToDec(currentLetter);
-				
 				if (escapeLength == 2) {
 					readingComplexEscape = false;
 				}
-				
 				break;
 			default:
 				break;
@@ -976,7 +1001,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 		if (startedColumn) {
 			if (columnBuffer.position == 0) { // skip use of column buffer as it has no data - use readBuffer directly
 				if (readBufferConsumed < readBuffer.position) {
-					currentValue = new String(readBuffer.buffer, readBufferConsumed, readBuffer.getTrimmedPosition(readBufferConsumed) - readBufferConsumed);
+					currentValue = new String(readBuffer.buffer, readBufferConsumed, readBuffer.getPositionTrimmed(readBufferConsumed) - readBufferConsumed);
 				}
 				else if (emptyCellHandling == EmptyCellHandling.NONQUOTED_NULL_QUOTED_EMPTY) {
 					currentValue = startedWithQualifier ? "" : null;
@@ -990,7 +1015,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 			}
 			else {
 				updateCurrentValue();
-				currentValue = new String(columnBuffer.buffer, 0, columnBuffer.getTrimmedPosition(0));
+				currentValue = new String(columnBuffer.buffer, 0, columnBuffer.getPositionTrimmed(0));
 			}
 		}
 		else if (emptyCellHandling == EmptyCellHandling.NONQUOTED_NULL_QUOTED_EMPTY) {
@@ -1126,11 +1151,11 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 	/** Closes and releases related resources, optionally closing underlying reader.
 	 * @param closeReader Close the underlying input reader. */
 	public void close(boolean closeReader) {
-		if ( ! closed && closeReader && reader != null) {
+		if (closeReader && ! closed && reader != null) {
 			try {
 				reader.close();
 			}
-			catch (Exception e) {
+			catch (IOException e) {
 				// eat the exception
 			}
 		}
@@ -1143,7 +1168,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 	
 	private void checkClosed() throws IOException {
 		if (closed) {
-			throw new IOException("This instance of the CsvReader class has already been closed.");
+			throw new IOException("This instance of the " + CsvReader.class.getSimpleName() + " class has already been closed.");
 		}
 	}
 	
@@ -1157,8 +1182,8 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 			try {
 				iteratorReadStatus = readRecord();
 			}
-			catch (Exception e) {
-				// eat the exception
+			catch (IOException e) {
+				throw new RuntimeException(e);
 			}
 		}
 		return iteratorReadStatus;
@@ -1172,7 +1197,7 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 				return getValues();
 			}
 			catch (IOException e) {
-				// eat the exception
+				throw new RuntimeException(e);
 			}
 		}
 		throw new NoSuchElementException("No next record.");

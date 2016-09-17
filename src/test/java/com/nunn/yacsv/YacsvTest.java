@@ -96,6 +96,8 @@ public class YacsvTest {
 				}
 			}
 		}
+		
+		testMethods.sort((a, b) -> { return a.getName().compareToIgnoreCase(b.getName()); });
 
 		Object instance = testClass.newInstance();
 		
@@ -103,6 +105,9 @@ public class YacsvTest {
 			setup.invoke(instance);
 		}
 
+		int passed = 0;
+		int failed = 0;
+		
 		for (Method method : testMethods) {
 			for (Method setup : setups) {
 				setup.invoke(instance);
@@ -120,17 +125,21 @@ public class YacsvTest {
 				
 				if (expectedException == null) {
 					System.out.println("...Passed");
+					passed++;
 				}
 				else {
 					System.out.println("...Failed: Expected exception not thrown: " + expectedException.getName());
+					failed++;
 				}
 			}
 			catch (Exception e) {
 				if (e.getCause().getClass().equals(expectedException)) {
 					System.out.println("...Passed");
+					passed++;
 				}
 				else {
-					System.out.println("...Failed: Unexpected exception thrown: " + e);
+					System.out.println("...Failed: Unexpected exception thrown: " + e.getCause());
+					failed++;
 				}
 			}
 
@@ -143,7 +152,7 @@ public class YacsvTest {
 			tearDown.invoke(instance);
 		}
 		
-		System.out.println("Done with all tests.");
+		System.out.println("Done with all tests. " + passed + " passed / " + failed + " failed, of " + (passed + failed) + " total.");
 	}
 
 	private static String generateString(char letter, int count) {
@@ -1580,7 +1589,7 @@ public class YacsvTest {
 		} catch (Exception ex) {
 			assertException(
 					new IOException(
-							"This instance of the CsvReader class has already been closed."),
+							"This instance of the " + CsvReader.class.getSimpleName() + " class has already been closed."),
 					ex);
 		}
 	}
@@ -2319,7 +2328,7 @@ public class YacsvTest {
 		}
 		catch (Exception ex)
 		{
-			assertException(new IOException("This instance of the CsvReader class has already been closed."), ex);
+			assertException(new IOException("This instance of the " + CsvReader.class.getSimpleName() + " class has already been closed."), ex);
 		}
 	}
 
