@@ -20,12 +20,13 @@ public class Benchmark {
 		try {
 			temp = Files.createTempDirectory("yacsv-bench");
 			
-			Fuzzer fuzzer = new Fuzzer();
-			
 			for (int i = 10000; i < 1000001; i *= 10) {
 				Path file = Files.createTempFile(temp, "data-" + i, ".csv");
-				fuzzer.writeDataToFile(file, 25, i);
-				files.add(file);
+				
+				try (Fuzzer fuzzer = new Fuzzer(file)) {
+					fuzzer.writeDataToFile(25, i);
+					files.add(file);
+				}
 			}
 		}
 		catch (IOException e) {
@@ -33,13 +34,6 @@ public class Benchmark {
 		}
 		
 		System.out.println("Files ready...");
-		
-		try {
-			Thread.sleep(2000);
-		}
-		catch (InterruptedException e) {
-			e.printStackTrace();
-		}
 		
 		if ( ! files.isEmpty()) {
 			long[] lines = new long[files.size()];
