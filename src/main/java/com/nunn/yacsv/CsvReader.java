@@ -63,12 +63,12 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 	private boolean[] isQualified = new boolean[16]; // INITIAL_COLUMN_COUNT
 	private String[] csvHeaders = {};
 	private Map<String, Integer> headerIndex = new HashMap<String, Integer>();
-	private char lastLetter;
-	private char currentLetter;
-	private boolean readingComplexEscape;
-	private ComplexEscape escape;
-	private int escapeLength;
-	private char escapeValue;
+	private char lastLetter = (char) 0;
+	private char currentLetter = (char) 0;
+	private boolean readingComplexEscape = false;
+	private ComplexEscape escape = ComplexEscape.UNICODE;
+	private int escapeLength = 0;
+	private char escapeValue = (char) 0;
 	
 	/** Configuration accessor - getters and setters for CsvReader behaviour options are exposed here. */
 	public final Config config;
@@ -662,9 +662,6 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 						boolean eatingTrailingJunk = false;
 						boolean lastLetterWasEscape = false;
 						readingComplexEscape = false;
-						escape = ComplexEscape.UNICODE;
-						escapeLength = 0;
-						escapeValue = Letters.NULL;
 						lastLetter = currentLetter;
 						readBuffer.position++;
 						readBufferConsumed = readBuffer.position;
@@ -776,9 +773,6 @@ public class CsvReader implements AutoCloseable, Iterator<String[]>, Iterable<St
 						readBufferConsumed = readBuffer.position;
 						boolean lastLetterWasBackslash = false;
 						readingComplexEscape = false;
-						escape = ComplexEscape.UNICODE;
-						escapeLength = 0;
-						escapeValue = Letters.NULL;
 						
 						do {
 							if (readBuffer.position == readCount) {
